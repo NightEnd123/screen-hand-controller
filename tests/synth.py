@@ -1,4 +1,7 @@
-"""Synthetic right-hand landmarks for tests (palm facing the camera, fingers up, mirrored view)."""
+"""Synthetic hand landmarks for tests (palm facing the camera, fingers up, mirrored view).
+
+Hand proportions can be varied (finger length, palm width, thumb length), as can size in frame
+(distance), tilt, and side (mirror=True makes a left hand), to check gestures work for anyone."""
 import math
 
 import numpy as np
@@ -15,10 +18,10 @@ _FINGERS = {
 _CURL = {"ext": (0, 0, 0), "curl": (80, 180, 240), "bent": (35, 75, 95)}
 
 
-def _finger(name, state, spread=0.0):
+def _finger(name, state, spread=0.0, length=1.0, width=1.0):
     x, y, segs = _FINGERS[name]
-    pts = [np.array([x, y, 0.0])]
-    for seg, ang in zip(segs, _CURL[state]):
+    pts = [np.array([x * width, y, 0.0])]
+    for seg, ang in zip((s * length for s in segs), _CURL[state]):
         a = math.radians(ang)
         d = np.array([spread * math.cos(a), -math.cos(a), -math.sin(a)])
         pts.append(pts[-1] + seg * d / np.linalg.norm(d))
@@ -27,14 +30,17 @@ def _finger(name, state, spread=0.0):
 
 def make_hand(index="ext", middle="ext", ring="ext", pinky="ext", thumb="out",
               center=(0.5, 0.35), scale=2.0, rotate180=False, aspect=4 / 3,
-              pinch=None, spread=None, handedness="Right", pinch_gap=0.004):
-    """Build a Hand. thumb: out | folded | up. pinch: None | 'index' | 'middle' (thumb tip meets that tip)."""
+              pinch=None, spread=None, handedness=None, pinch_gap=0.004,
+              finger_len=1.0, palm_width=1.0, thumb_len=1.0, tilt=0.0, mirror=False):
+    """Build a Hand. thumb: out | folded | up. pinch: None | 'index' | 'middle' (thumb tip meets that tip).
+    finger_len / palm_width / thumb_len scale those parts; tilt rotates the hand in the image
+    (degrees, about the wrist); mirror makes it a left hand."""
     w = np.zeros((21, 3))
     w[0] = (0, 0, 0)
     spread = spread or {}
     for i, (name, st) in enumerate(zip(_FINGERS, (index, middle, ring, pinky))):
-        w[5 + 4 * i: 9 + 4 * i] = _finger(name, st, spread.get(name, 0.0))
-    cmc = np.array([-0.025, -0.025, 0.0])
+        w[5 + 4 * i: 9 + 4 * i] = _finger(name, st, spread.get(name, 0.0), finger_len, palm_width)
+    cmc = np.array([-0.025 * palm_width, -0.025, 0.0])
     if thumb == "out":
         d = np.array([-0.6, -0.8, 0.0])
     elif thumb == "up":
@@ -45,9 +51,9 @@ def make_hand(index="ext", middle="ext", ring="ext", pinky="ext", thumb="out",
     if d is not None:
         d = d / np.linalg.norm(d)
         w[1] = cmc
-        w[2] = cmc + 0.04 * d
-        w[3] = w[2] + 0.035 * d
-        w[4] = w[3] + (0.045 if thumb == "up" else 0.03) * d
+        w[2] = cmc + 0.04 * thumb_len * d
+        w[3] = w[2] + 0.035 * thumb_len * d
+        w[4] = w[3] + (0.045 if thumb == "up" else 0.03) * thumb_len * d
     else:  # folded across the curled fingers
         w[1] = cmc
         w[2] = (-0.040, -0.045, -0.015)
@@ -60,6 +66,14 @@ def make_hand(index="ext", middle="ext", ring="ext", pinky="ext", thumb="out",
     if rotate180:
         w[:, 0] *= -1
         w[:, 1] *= -1
+    if tilt:
+        a = math.radians(tilt)
+        x, y = w[:, 0].copy(), w[:, 1].copy()
+        w[:, 0], w[:, 1] = x * math.cos(a) - y * math.sin(a), x * math.sin(a) + y * math.cos(a)
+    if mirror:
+        w[:, 0] *= -1
+    if handedness is None:
+        handedness = "Left" if mirror else "Right"
     img = np.zeros((21, 3))
     img[:, 0] = (center[0] * aspect + w[:, 0] * scale) / aspect
     img[:, 1] = center[1] + w[:, 1] * scale + 0.09 * scale

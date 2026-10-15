@@ -82,15 +82,25 @@ def test_recording(path, hand):
         got = tally(replay(data, mirror_cfg()))
     else:
         got = tally(replay(data))
+    problems = check(data, got)
+    assert not problems, f"{problems}. All: {dict(got)}"
+
+
+def check(data, got):
+    """What's wrong with the actions `got` for this recording (empty list = as expected)."""
+    problems = []
     for key, want in data["expect"].items():
         if want == ">0":
-            assert got[key] > 0, f"{key}: expected some, got none. All: {dict(got)}"
-        else:
-            assert got[key] == want, f"{key}: expected {want}, got {got[key]}. All: {dict(got)}"
+            if not got[key] > 0:
+                problems.append(f"{key}: expected some, got none")
+        elif got[key] != want:
+            problems.append(f"{key}: expected {want}, got {got[key]}")
     if data["forbid_other"]:
         extra = {k: v for k, v in got.items() if k not in data["expect"]
                  and not (k.startswith("up:") and f"down:{k[3:]}" in data["expect"])}
-        assert not extra, f"unexpected actions: {extra}"
+        if extra:
+            problems.append(f"unexpected actions: {extra}")
+    return problems
 
 
 def test_replay_harness_on_synthetic_recording():
