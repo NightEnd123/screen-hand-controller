@@ -18,8 +18,9 @@ Everything runs on your computer. The camera picture is never saved or sent anyw
    3. Point at two corners to choose the area your hand moves in.
    4. Do a few pinches so the clicks fit how *you* pinch.
 
-After that, the app runs in the background with a hand icon in the system tray (check the `^` arrow
-by the clock). You can re-run setup any time: tray icon → **Run setup again**.
+After that, the **Gesture Control window** opens (it has its own taskbar button). Closing the window
+keeps the app running in the background, with a hand icon in the system tray (check the `^` arrow by
+the clock). Click the tray icon to bring the window back.
 
 No Python or anything else is needed. To remove the app, see [Uninstall](#uninstall).
 
@@ -51,22 +52,31 @@ Tips:
 - Typing on the keyboard turns gestures off for a second, so typing doesn't cause clicks.
 - **The dot next to the cursor** shows what the app sees: green = pointing, red = click/drag, orange = right click, yellow = scroll, purple = window switcher, cyan = open palm, blue = V-sign. A ring fills while you hold a gesture. You can turn it off in Settings.
 
-## Tray icon
+## The window
 
-Right-click the tray icon for the menu: Pause, Camera off, Settings…, Calibrate control box,
-Run setup again, Start with Windows, Quit.
+- **Status** at the top right: 🟢 Active · 🟡 Paused (watching for a thumbs-up) · ⚪ Camera off ·
+  🔴 Camera problem (with tips on what to try) · 🔵 Setting up.
+- **Show camera view**: see what the app sees, with your hand's tracking points and the control
+  area drawn on it. Handy for checking your hand is in view. The picture is never saved.
+- **Now / Last action**: the gesture it currently sees and the last thing it did.
+- Buttons for **Pause / Resume**, **Turn camera off**, **Gesture guide**, **Settings…**,
+  **Run setup again**, **Calibrate control area**, **Start with Windows** and **Quit**.
 
-Colours: 🟢 active · 🟡 paused (watching for a thumbs-up) · ⚪ camera off · 🔴 camera problem · 🔵 setting up.
+Closing the window doesn't quit; the app keeps working from the tray. To quit, use **Quit Gesture
+Control** in the window or **Quit** in the tray menu. With *Start with Windows* on, the app starts
+quietly in the tray when you log in.
+
+The tray icon has the same colours. Click it to open the window; right-click for a menu.
 
 - **Pause** keeps the camera on (slowly) so a thumbs-up can resume.
 - **Camera off** releases the camera completely (its light goes off). Turn it back on with Ctrl+Alt+G or the tray.
 
 ## Settings
 
-Tray → **Settings…** has sliders for the common things: cursor steadiness, precision mode,
+**Settings…** (in the window or the tray menu) has sliders for the common things: cursor steadiness, precision mode,
 pinch sensitivity, scroll and volume speed, swipe size, and on-screen feedback.
 
-Everything else is in a settings file: tray → **Edit settings file**, save, then tray → **Reload settings**.
+Everything else is in a settings file: tray menu → **Edit settings file**, save, then **Reload settings**.
 The file lives at `%APPDATA%\GestureControl\config.toml` and every option has a comment.
 You can also give **individual apps their own gestures**: for example, PowerPoint swipes change
 slides and Spotify swipes skip tracks (both set up as examples).
@@ -78,12 +88,12 @@ targets. Moving fast is 1:1.
 
 | Problem | Try |
 |---|---|
-| Tray icon is red / setup shows no picture | Close other apps using the camera (Teams, Zoom, Camera). Windows Settings → Privacy & security → Camera: turn on *Camera access* and *Let desktop apps access your camera*. In setup, try **Use another camera**. |
-| Nothing happens when I point | Make sure it's the hand you chose in setup and your palm faces the screen. Get some light on your hand. Run setup again. |
+| Status says *Camera problem* / setup shows no picture | Close other apps using the camera (Teams, Zoom, Camera). Windows Settings → Privacy & security → Camera: turn on *Camera access* and *Let desktop apps access your camera*. In setup, try **Use another camera**. |
+| Nothing happens when I point | Click **Show camera view** to check your hand is tracked and inside the box. Use the hand you chose in setup, palm toward the screen, with some light on it. Or run setup again. |
 | Clicks don't register | Run setup again and do the pinches the way you naturally would. Or Settings → *Pinch sensitivity* toward "tinier pinches". |
 | Accidental clicks | Settings → *Pinch sensitivity* toward "fewer accidental clicks". |
 | Cursor shaky when still | Settings → *Steadiness when still* lower. |
-| Cursor can't reach the screen edges | Tray → **Calibrate control box** and pick a slightly smaller area. |
+| Cursor can't reach the screen edges | **Calibrate control area** and pick a slightly smaller area. |
 | Swipes trigger too easily / not at all | Settings → *Swipe size needed*. |
 | It can't click in Task Manager, installers or admin prompts | Windows blocks normal apps from controlling admin windows. Use the real mouse there. |
 
@@ -105,7 +115,7 @@ The most useful thing you can send is a short recording of hand-point numbers (n
 
 ## Uninstall
 
-Tray → untick **Start with Windows**, then **Quit**. Delete the app folder and `%APPDATA%\GestureControl`.
+Untick **Start with Windows** in the window, then **Quit Gesture Control**. Delete the app folder and `%APPDATA%\GestureControl`.
 
 ## For developers
 
@@ -119,14 +129,14 @@ Needs Windows and Python 3.12.
 .\build.ps1 -Version 0.1.0                    # build dist\GestureControl-0.1.0-windows.zip
 ```
 
-Useful flags: `--setup` (open setup), `--fake-camera` (blank test picture), `--record`, `--paused`,
-`--no-tray`. From source, settings are in `config.toml` in the project folder (created from
+Useful flags: `--setup` (open setup), `--background` (start in the tray, no window),
+`--fake-camera` (blank test picture), `--record`, `--paused`, `--no-tray`. From source, settings are in `config.toml` in the project folder (created from
 `gesture_control/default_config.toml` on first run). `GESTURE_CONTROL_HOME` overrides where settings go.
 
 Code (`gesture_control/`):
 - `gestures.py`: the gesture state machine (pure logic, no camera or OS calls)
 - `features.py`: hand-shape detection from MediaPipe's 21 hand points
-- `setup_wizard.py` / `setup_window.py`: first-run setup logic / window
+- `main_window.py`: the main window · `setup_wizard.py` / `setup_window.py`: first-run setup logic / window
 - `filters.py`: One Euro smoothing · `output.py`: 120 Hz cursor glide · `actions.py`: Windows SendInput
 
 Tests: `tests/test_hands.py` runs every gesture across 13 synthetic hands (sizes, distances,
