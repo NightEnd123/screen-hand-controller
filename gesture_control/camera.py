@@ -10,6 +10,27 @@ log = logging.getLogger(__name__)
 BACKENDS = {"dshow": cv2.CAP_DSHOW, "msmf": cv2.CAP_MSMF}
 
 
+class FakeCapture:
+    """Stand-in camera for testing (--fake-camera): a plain grey picture, ~30 fps."""
+
+    def __init__(self, w, h):
+        import numpy as np
+        self.frame = np.full((h, w, 3), 90, np.uint8)
+        cv2.putText(self.frame, "test picture (no camera)", (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (200, 200, 200), 1, cv2.LINE_AA)
+        self.frame = cv2.flip(self.frame, 1)   # the tracker mirrors it back
+
+    def grab(self):
+        time.sleep(1 / 30)
+        return True
+
+    def retrieve(self):
+        return True, self.frame.copy()
+
+    def release(self):
+        pass
+
+
 class Camera(threading.Thread):
     def __init__(self, cfg_cam):
         super().__init__(daemon=True, name="camera")
@@ -26,9 +47,14 @@ class Camera(threading.Thread):
         # continuous: decode every frame so read() returns immediately (used while tracking a hand,
         # ~1-2% CPU). Otherwise only decode on request (saves CPU when idle/paused).
         self.continuous = False
+        self._reopen = False
 
     def set_open(self, on):
         self.want_open = on
+
+    def reopen(self):
+        """Close and reopen, e.g. after cfg["index"] changed."""
+        self._reopen = True
 
     def stop(self):
         self.running = False
@@ -47,6 +73,9 @@ class Camera(threading.Thread):
 
     def _open(self):
         self.status = "opening"
+        if self.cfg["backend"] == "fake":
+            self.status = "ok"
+            return FakeCapture(self.cfg["width"], self.cfg["height"])
         backend = BACKENDS.get(self.cfg["backend"], cv2.CAP_ANY)
         cap = cv2.VideoCapture(self.cfg["index"], backend)
         if not cap.isOpened() and backend != cv2.CAP_DSHOW:
@@ -74,6 +103,9 @@ class Camera(threading.Thread):
         fails = 0
         try:
             while self.running:
+                if self._reopen:
+                    self._reopen = False
+                    self._close()
                 if not self.want_open:
                     self._close()
                     time.sleep(0.1)

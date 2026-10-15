@@ -11,22 +11,29 @@ MODE_COLORS = {
 }
 
 
+def annotate(frame, hand, box=None, color=(200, 200, 200)):
+    """Copy of the frame with the control box and the hand's landmarks drawn on it."""
+    img = frame.copy()
+    h, w = img.shape[:2]
+    if box:
+        x0, y0, x1, y1 = box
+        cv2.rectangle(img, (int(x0 * w), int(y0 * h)), (int(x1 * w), int(y1 * h)), (255, 255, 255), 1)
+    if hand is not None:
+        pts = [(int(p[0] * w), int(p[1] * h)) for p in hand.img]
+        for a, b in CONNECTIONS:
+            cv2.line(img, pts[a], pts[b], color, 2)
+        for i, p in enumerate(pts):
+            cv2.circle(img, p, 5 if i in (4, 8, 12) else 3, (255, 255, 255), -1)
+    return img
+
+
 class Preview:
     def __init__(self):
         self.open = False
 
     def show(self, frame, hand, box, lines, mode="", progress=None, banner=None):
-        img = frame.copy()
+        img = annotate(frame, hand, box, MODE_COLORS.get(mode, (200, 200, 200)))
         h, w = img.shape[:2]
-        x0, y0, x1, y1 = box
-        cv2.rectangle(img, (int(x0 * w), int(y0 * h)), (int(x1 * w), int(y1 * h)), (255, 255, 255), 1)
-        color = MODE_COLORS.get(mode, (200, 200, 200))
-        if hand is not None:
-            pts = [(int(p[0] * w), int(p[1] * h)) for p in hand.img]
-            for a, b in CONNECTIONS:
-                cv2.line(img, pts[a], pts[b], color, 2)
-            for i, p in enumerate(pts):
-                cv2.circle(img, p, 5 if i in (4, 8, 12) else 3, (255, 255, 255), -1)
         y = 22
         for line in lines:
             cv2.putText(img, line, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3, cv2.LINE_AA)

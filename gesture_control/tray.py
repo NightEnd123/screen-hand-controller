@@ -14,7 +14,7 @@ TITLES = {
     "paused": "Gesture Control: paused (thumbs-up to resume)",
     "off": "Gesture Control: camera off",
     "error": "Gesture Control: camera problem",
-    "calibrating": "Gesture Control: calibrating",
+    "calibrating": "Gesture Control: setting up",
 }
 
 
@@ -40,6 +40,7 @@ class Tray:
             I("Camera off", lambda: app.set_camera_off(not app.camera_off), checked=lambda _: app.camera_off),
             I("Show debug view", lambda: app.toggle_preview(), checked=lambda _: app.preview),
             I("Calibrate control box", lambda: app.start_calibration()),
+            I("Run setup again", lambda: app.start_wizard()),
             pystray.Menu.SEPARATOR,
             I("Settings…", lambda: app.open_settings()),
             I("Edit settings file", lambda: app.edit_settings()),
