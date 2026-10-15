@@ -7,3 +7,4 @@ models/*.task
 recordings/sessions/
 build/
 dist/
+config.toml

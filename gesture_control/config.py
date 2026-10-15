@@ -1,13 +1,30 @@
 """Settings: built-in defaults, overridden by config.toml."""
 import copy
+import os
 import re
+import shutil
+import sys
 import tomllib
 from pathlib import Path
 
+# FROZEN = running as the packaged GestureControl.exe (PyInstaller).
+FROZEN = getattr(sys, "frozen", False)
 ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = ROOT / "config.toml"
-MODEL_PATH = ROOT / "models" / "hand_landmarker.task"
-LOG_DIR = ROOT / "logs"
+# Read-only files that ship with the app (the hand model, the default settings).
+RES = Path(getattr(sys, "_MEIPASS", ROOT))
+# The person's own files (settings, logs, session recordings): next to the code when run from
+# source, in %APPDATA%\GestureControl for the .exe. GESTURE_CONTROL_HOME overrides both.
+if os.environ.get("GESTURE_CONTROL_HOME"):
+    DATA = Path(os.environ["GESTURE_CONTROL_HOME"])
+elif FROZEN:
+    DATA = Path(os.environ.get("APPDATA", Path.home())) / "GestureControl"
+else:
+    DATA = ROOT
+CONFIG_PATH = DATA / "config.toml"
+DEFAULT_CONFIG = RES / "gesture_control" / "default_config.toml"
+MODEL_PATH = RES / "models" / "hand_landmarker.task"
+LOG_DIR = DATA / "logs"
+SESSIONS_DIR = DATA / "recordings" / "sessions"
 
 DEFAULTS = {
     "profile": {"setup_done": False},
@@ -55,6 +72,13 @@ def _merge(base, over):
         else:
             base[k] = v
     return base
+
+
+def ensure_config():
+    """First run: start the person's config.toml from the commented default one."""
+    if not CONFIG_PATH.exists() and DEFAULT_CONFIG.exists():
+        DATA.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(DEFAULT_CONFIG, CONFIG_PATH)
 
 
 def load(path=CONFIG_PATH):

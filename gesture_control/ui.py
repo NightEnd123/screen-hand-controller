@@ -51,6 +51,9 @@ class UI(threading.Thread):
         self.flash_until, self.flash_color = 0.0, "#ffffff"
         self.label, self.label_until = "", 0.0
         self.settings_win = None
+        self.setup_win = None
+        self.setup_view = self.setup_rgb = None
+        self.setup_new = False
         self.shown = None
         self.drawn_key = None    # what's currently on the canvas, to skip identical redraws
         self.pos = None
@@ -72,6 +75,16 @@ class UI(threading.Thread):
 
     def open_settings(self):
         self.requests.put("settings")
+
+    def open_setup(self):
+        self.setup_view = self.setup_rgb = None
+        self.requests.put("setup_open")
+
+    def close_setup(self):
+        self.requests.put("setup_close")
+
+    def setup_feed(self, view, rgb):
+        self.setup_view, self.setup_rgb, self.setup_new = view, rgb, True
 
     def stop(self):
         self.requests.put("quit")
@@ -116,6 +129,15 @@ class UI(threading.Thread):
                     return
                 if req == "settings":
                     self._show_settings()
+                elif req == "setup_open":
+                    self._open_setup()
+                elif req == "setup_close" and self.setup_win is not None:
+                    self.setup_win.close()
+                    self.setup_win = None
+            if self.setup_win is not None and self.setup_new:
+                self.setup_new = False
+                if self.setup_win.alive():
+                    self.setup_win.show(self.setup_view, self.setup_rgb)
             self._draw()
         except Exception:
             log.exception("overlay tick failed")
@@ -186,6 +208,22 @@ class UI(threading.Thread):
         ("feedback", "sounds", "Sounds on pause / resume", None, None, None, None),
         ("feedback", "notifications", "Pop-up notifications", None, None, None, None),
     ]
+
+    def _icon_for(self, win):
+        try:
+            from PIL import ImageTk
+            from .tray import COLORS, make_icon
+            return ImageTk.PhotoImage(make_icon(COLORS["active"], 32), master=win)
+        except Exception:
+            return None
+
+    def _open_setup(self):
+        from .setup_window import SetupWindow
+        if self.setup_win is not None and self.setup_win.alive():
+            self.setup_win.win.lift()
+            return
+        self._setup_icon = self._icon_for(self.root)
+        self.setup_win = SetupWindow(self.root, self.app, self._setup_icon)
 
     def _show_settings(self):
         if self.settings_win is not None and self.settings_win.winfo_exists():

@@ -66,6 +66,8 @@ class App:
         self.config = config
         self.args = args
         self.cfg = config.load()
+        if args.fake_camera:
+            self.cfg["camera"]["backend"] = "fake"
         self.screen = virtual_screen()
         log.info("screen %s, dry_run=%s", self.screen, args.dry_run)
         self.act = DryRunActuator() if args.dry_run else Actuator()
@@ -79,6 +81,7 @@ class App:
         self.preview = args.preview
         self.camera_off = False
         self.calibrator = None
+        self.wizard = None
         self.cmds = queue.Queue()
         self.running = True
         self.typing_until = 0.0
@@ -86,7 +89,7 @@ class App:
         self.session = None
         if args.record:   # landmark numbers + what the app did, for replaying problems (no images)
             stamp = time.strftime("%Y%m%d-%H%M%S")
-            self.session_path = config.ROOT / "recordings" / "sessions" / f"session-{stamp}.json"
+            self.session_path = config.SESSIONS_DIR / f"session-{stamp}.json"
             self.session_path.parent.mkdir(parents=True, exist_ok=True)
             self.session = []
             self.session_saved = time.perf_counter()
@@ -128,6 +131,54 @@ class App:
             self._notify("Calibration: in the debug window, hold your fingertip at the top-left, then bottom-right.")
         self.cmds.put(cmd)
 
+    def start_wizard(self):
+        from .setup_wizard import SetupWizard
+
+        def cmd():
+            w, h = self.cfg["camera"]["width"], self.cfg["camera"]["height"]
+            self.output.submit(None, self.engine.set_paused(self.engine.paused))
+            self.camera_off = False
+            self.calibrator = None
+            self.wizard = SetupWizard(self.cfg, self.screen[2] / self.screen[3], w / h, self.tracker.swap)
+            if self.ui:
+                self.ui.open_setup()
+        self.cmds.put(cmd)
+
+    def wizard_cmd(self, name, arg=None):
+        """Buttons in the setup window (called from the Tk thread)."""
+        def cmd():
+            wz = self.wizard
+            if wz is None:
+                return
+            if name == "hand":
+                wz.choose_hand(arg)
+            elif name == "skip":
+                wz.skip_step()
+            elif name == "camera_next":
+                self.camera.cfg["index"] = (self.camera.cfg["index"] + 1) % 4
+                self.camera.reopen()
+                log.info("setup: trying camera %d", self.camera.cfg["index"])
+            elif name in ("finish", "skip_all"):
+                updates = (wz.finish(camera_index=self.camera.cfg["index"]) if name == "finish"
+                           else {("profile", "setup_done"): True})
+                log.info("setup saved: %s", updates)
+                self.config.set_values(updates)
+                self._end_wizard()
+                self._apply_settings(self.config.load())
+                self._notify("Setup saved. Gestures are on." if name == "finish"
+                             else "Setup skipped. Run it any time from the tray icon.")
+            elif name == "cancel":
+                self._end_wizard()
+                if self.camera.cfg["index"] != self.cfg["camera"]["index"]:
+                    self.camera.cfg["index"] = self.cfg["camera"]["index"]
+                    self.camera.reopen()
+        self.cmds.put(cmd)
+
+    def _end_wizard(self):
+        self.wizard = None
+        if self.ui:
+            self.ui.close_setup()
+
     def edit_settings(self):
         subprocess.Popen(["notepad.exe", str(self.config.CONFIG_PATH)])
 
@@ -139,15 +190,22 @@ class App:
                 self._notify(f"Settings not loaded: {e}")
                 log.exception("bad config")
                 return
-            paused = self.engine.paused
-            self.output.submit(None, self.engine.set_paused(True))
-            self.cfg = cfg
-            self.engine = self._GestureEngine(cfg, self.screen)
-            self.engine.set_paused(paused)
-            self.output.tau = max(cfg["smoothing"]["glide_ms"], 1) / 1000
-            self.camera.cfg = cfg["camera"]
-            self._notify("Settings reloaded (hotkey and camera changes need a restart).")
+            self._apply_settings(cfg)
+            self._notify("Settings reloaded (hotkey changes need a restart).")
         self.cmds.put(cmd)
+
+    def _apply_settings(self, cfg):
+        paused = self.engine.paused
+        self.output.submit(None, self.engine.set_paused(True))
+        self.cfg = cfg
+        self.engine = self._GestureEngine(cfg, self.screen)
+        self.engine.set_paused(paused)
+        self.output.tau = max(cfg["smoothing"]["glide_ms"], 1) / 1000
+        self.tracker.swap = cfg["tracking"]["swap_handedness"]
+        reopen = cfg["camera"]["index"] != self.camera.cfg["index"]
+        self.camera.cfg = cfg["camera"]
+        if reopen:
+            self.camera.reopen()
 
     def open_settings(self):
         if self.ui:
@@ -173,11 +231,16 @@ class App:
         if STARTUP_FILE.exists():
             STARTUP_FILE.unlink()
             return
-        root = self.config.ROOT
+        if self.config.FROZEN:
+            exe = Path(sys.executable)
+            folder, command = exe.parent, f'"""{exe}"""'
+        else:
+            folder = self.config.ROOT
+            command = f'"""{folder / ".venv" / "Scripts" / "pythonw.exe"}"" -m gesture_control"'
         STARTUP_FILE.write_text(
             'Set sh = CreateObject("WScript.Shell")\r\n'
-            f'sh.CurrentDirectory = "{root}"\r\n'
-            f'sh.Run """{root / ".venv" / "Scripts" / "pythonw.exe"}"" -m gesture_control", 0, False\r\n',
+            f'sh.CurrentDirectory = "{folder}"\r\n'
+            f'sh.Run {command}, 0, False\r\n',
             encoding="utf-8")
 
     def on_typing(self):
@@ -237,7 +300,7 @@ class App:
     def _tray_state(self):
         if self.camera.status == "error":
             return "error"
-        if self.calibrator is not None:
+        if self.calibrator is not None or self.wizard is not None:
             return "calibrating"
         if self.camera_off:
             return "off"
@@ -270,6 +333,8 @@ class App:
                 start = time.perf_counter()
                 frame = self.camera.read(timeout=1.0)
                 if frame is None:
+                    if self.wizard is not None and self.ui:
+                        self.ui.setup_feed(self.wizard.camera_problem(self.camera.cfg["index"]), None)
                     continue
                 t = time.perf_counter()
                 hand, mirrored = self.tracker.detect(frame, t)
@@ -277,7 +342,12 @@ class App:
                     last_hand = t
 
                 banner, progress, out = None, None, None
-                if self.calibrator is not None:
+                if self.wizard is not None:
+                    view = self.wizard.update(t, hand)
+                    if self.ui:
+                        self.ui.setup_feed(view, self._setup_image(mirrored, hand, view))
+                    mode = "calibrating"
+                elif self.calibrator is not None:
                     banner, result = self.calibrator.update(t, hand)
                     progress = self.calibrator.progress
                     if result == "timeout":
@@ -343,9 +413,10 @@ class App:
 
                 # adaptive frame rate
                 c = self.cfg["camera"]
-                if self.engine.paused and self.calibrator is None:
+                setting_up = self.calibrator is not None or self.wizard is not None
+                if self.engine.paused and not setting_up:
                     target = c["paused_fps"]
-                elif t - last_hand > c["idle_after_s"] and self.calibrator is None:
+                elif t - last_hand > c["idle_after_s"] and not setting_up:
                     target = c["idle_fps"]
                 else:
                     target = c["active_fps"]
@@ -361,6 +432,17 @@ class App:
                 time.sleep(1)
         self.preview_win.close()
 
+    def _setup_image(self, mirrored, hand, view):
+        """Camera picture for the setup window (shown live, never saved), as RGB."""
+        import cv2
+        from .preview import annotate
+        img = annotate(mirrored, hand, None, (80, 200, 80))
+        h, w = img.shape[:2]
+        for x, y in view.points:
+            cv2.circle(img, (int(x * w), int(y * h)), 9, (0, 200, 255), 3)
+        img = cv2.resize(img, (512, round(512 * h / w)), interpolation=cv2.INTER_AREA)
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
     # ---- lifecycle -----------------------------------------------------------------------------
     def _install_ctrl_c(self):
         """Ctrl+C / closing the console quits cleanly (the tray's message loop would otherwise swallow it)."""
@@ -371,6 +453,12 @@ class App:
             return 1
         self._ctrl_handler = handler_type(on_ctrl)   # keep a reference so it isn't garbage-collected
         ctypes.windll.kernel32.SetConsoleCtrlHandler(self._ctrl_handler, True)
+
+    def _maybe_setup(self):
+        if self.args.setup or not self.cfg["profile"]["setup_done"]:
+            self.start_wizard()
+            return True
+        return False
 
     def run(self):
         from .hotkey import KeyWatcher
@@ -389,6 +477,7 @@ class App:
         try:
             if self.args.no_tray:
                 engine_thread.start()
+                self._maybe_setup()
                 log.info("running without tray; Ctrl+C to quit")
                 end = time.time() + (self.args.seconds or 1e12)
                 while self.running and time.time() < end:
@@ -399,7 +488,8 @@ class App:
                 def setup(icon):
                     icon.visible = True
                     engine_thread.start()
-                    self._announce(self.engine.paused, "start")
+                    if not self._maybe_setup():
+                        self._announce(self.engine.paused, "start")
                     if self.args.seconds:
                         timer = threading.Timer(self.args.seconds, self.quit)
                         timer.daemon = True
@@ -433,6 +523,8 @@ def main(argv=None):
     p.add_argument("--paused", action="store_true", help="start paused")
     p.add_argument("--no-tray", action="store_true", help="run in the console without a tray icon")
     p.add_argument("--seconds", type=float, help="quit after this many seconds (testing)")
+    p.add_argument("--setup", action="store_true", help="open the setup wizard even if setup was done")
+    p.add_argument("--fake-camera", action="store_true", help="use a blank test picture instead of a camera")
     p.add_argument("--record", action="store_true",
                    help="save hand-point numbers + actions to recordings/sessions/ (no images)")
     args = p.parse_args(argv)
@@ -440,10 +532,13 @@ def main(argv=None):
     set_dpi_aware()
     _mutex = single_instance()  # noqa: F841  (kept alive for the process lifetime)
     from . import config
+    config.ensure_config()
     setup_logging(config.LOG_DIR, console=sys.stdout is not None and sys.stdout.isatty())
+    log.info("settings: %s", config.CONFIG_PATH)
     if not config.MODEL_PATH.exists():
-        ctypes.windll.user32.MessageBoxW(None, f"Model file missing:\n{config.MODEL_PATH}\nRun setup.ps1.",
-                                         "Gesture Control", 0x10)
+        ctypes.windll.user32.MessageBoxW(
+            None, f"Model file missing:\n{config.MODEL_PATH}\nRe-download the app (or run setup.ps1 from source).",
+            "Gesture Control", 0x10)
         return 1
     App(args).run()
     return 0
