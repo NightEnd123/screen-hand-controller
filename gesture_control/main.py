@@ -119,6 +119,13 @@ class App:
     def toggle_preview(self):
         self.preview = not self.preview
 
+    def open_window(self):
+        if self.ui:
+            self.ui.show_main()
+
+    def notify(self, msg):
+        self._notify(msg)
+
     def start_calibration(self):
         from .calibrate import Calibrator
 
@@ -127,8 +134,8 @@ class App:
             self.output.submit(None, self.engine.set_paused(self.engine.paused))
             self.camera_off = False
             self.calibrator = Calibrator(self.screen[2] / self.screen[3], w / h)
-            self.preview = True
-            self._notify("Calibration: in the debug window, hold your fingertip at the top-left, then bottom-right.")
+            if self.ui:
+                self.ui.show_main(camera=True)
         self.cmds.put(cmd)
 
     def start_wizard(self):
@@ -233,10 +240,10 @@ class App:
             return
         if self.config.FROZEN:
             exe = Path(sys.executable)
-            folder, command = exe.parent, f'"""{exe}"""'
+            folder, command = exe.parent, f'"""{exe}"" --background"'
         else:
             folder = self.config.ROOT
-            command = f'"""{folder / ".venv" / "Scripts" / "pythonw.exe"}"" -m gesture_control"'
+            command = f'"""{folder / ".venv" / "Scripts" / "pythonw.exe"}"" -m gesture_control --background"'
         STARTUP_FILE.write_text(
             'Set sh = CreateObject("WScript.Shell")\r\n'
             f'sh.CurrentDirectory = "{folder}"\r\n'
@@ -326,6 +333,8 @@ class App:
                     self.camera.set_open(False)
                     if self.preview_win.open:
                         self.preview_win.close()
+                    if self.ui:
+                        self.ui.main_feed({"state": "off", "mode": "paused"}, None)
                     time.sleep(0.1)
                     continue
                 self.camera.set_open(True)
@@ -335,6 +344,8 @@ class App:
                 if frame is None:
                     if self.wizard is not None and self.ui:
                         self.ui.setup_feed(self.wizard.camera_problem(self.camera.cfg["index"]), None)
+                    if self.ui:
+                        self.ui.main_feed({"state": self._tray_state(), "mode": "idle"}, None)
                     continue
                 t = time.perf_counter()
                 hand, mirrored = self.tracker.detect(frame, t)
@@ -388,6 +399,15 @@ class App:
                     stats_t = t
                     log.info("stats: %.1f fps, %.1f%% CPU, state %s", fps, cpu, self._tray_state())
 
+                if self.ui:
+                    status = {"state": self._tray_state(), "mode": mode, "fps": fps, "cpu": cpu}
+                    if self.calibrator is not None:
+                        status["banner"], status["progress"] = banner, progress
+                    elif out is not None and "hold" in out.info:
+                        status["progress"] = out.info["hold"]
+                    rgb = self._view_image(mirrored, hand, mode) if self.ui.main_wants_camera else None
+                    self.ui.main_feed(status, rgb)
+
                 if self.preview:
                     lines = [f"mode: {mode}   state: {self._tray_state()}   {'DRY RUN' if self.args.dry_run else ''}",
                              f"fps: {fps:4.1f}   cpu: {cpu:4.1f}% of machine"]
@@ -431,6 +451,18 @@ class App:
                 self.act.release_all()
                 time.sleep(1)
         self.preview_win.close()
+
+    def _view_image(self, mirrored, hand, mode):
+        """Camera picture for the main window (shown live, never saved), as RGB."""
+        import cv2
+        from .preview import MODE_COLORS, annotate
+        img = annotate(mirrored, hand, self.engine.mapper.box, MODE_COLORS.get(mode, (80, 200, 80)))
+        h, w = img.shape[:2]
+        if self.calibrator is not None:
+            for x, y in self.calibrator.points:
+                cv2.circle(img, (int(x * w), int(y * h)), 9, (0, 200, 255), 3)
+        img = cv2.resize(img, (512, round(512 * h / w)), interpolation=cv2.INTER_AREA)
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     def _setup_image(self, mirrored, hand, view):
         """Camera picture for the setup window (shown live, never saved), as RGB."""
@@ -521,6 +553,7 @@ def main(argv=None):
     p.add_argument("--dry-run", action="store_true", help="log actions instead of moving the mouse / pressing keys")
     p.add_argument("--preview", action="store_true", help="open the debug view at start")
     p.add_argument("--paused", action="store_true", help="start paused")
+    p.add_argument("--background", action="store_true", help="start in the tray without opening the window")
     p.add_argument("--no-tray", action="store_true", help="run in the console without a tray icon")
     p.add_argument("--seconds", type=float, help="quit after this many seconds (testing)")
     p.add_argument("--setup", action="store_true", help="open the setup wizard even if setup was done")
@@ -530,6 +563,10 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     set_dpi_aware()
+    try:   # own taskbar button + icon, not grouped under Python
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GestureControl.App")
+    except Exception:
+        pass
     _mutex = single_instance()  # noqa: F841  (kept alive for the process lifetime)
     from . import config
     config.ensure_config()

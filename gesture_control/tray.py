@@ -36,7 +36,8 @@ class Tray:
         self.state = "paused"
         I = pystray.MenuItem
         menu = pystray.Menu(
-            I(lambda _: "Resume" if app.is_paused() else "Pause", lambda: app.toggle_pause("tray"), default=True),
+            I("Open Gesture Control", lambda: app.open_window(), default=True),
+            I(lambda _: "Resume" if app.is_paused() else "Pause", lambda: app.toggle_pause("tray")),
             I("Camera off", lambda: app.set_camera_off(not app.camera_off), checked=lambda _: app.camera_off),
             I("Show debug view", lambda: app.toggle_preview(), checked=lambda _: app.preview),
             I("Calibrate control box", lambda: app.start_calibration()),

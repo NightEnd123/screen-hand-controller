@@ -54,6 +54,10 @@ class UI(threading.Thread):
         self.setup_win = None
         self.setup_view = self.setup_rgb = None
         self.setup_new = False
+        self.main_win = None
+        self.main_status, self.main_rgb, self.main_new = {}, None, False
+        self.main_wants_camera = False   # read by the engine thread; set on the Tk thread
+        self.last_action = ""
         self.shown = None
         self.drawn_key = None    # what's currently on the canvas, to skip identical redraws
         self.pos = None
@@ -72,6 +76,10 @@ class UI(threading.Thread):
             if text and not (a[0] == "keys" and a[1] in ("volume_up", "volume_down", "tab", "shift+tab")
                              and self.label_until > now and self.label == text):
                 self.label, self.label_until = text, now + 1.2
+            if text:
+                self.last_action = text
+            elif a[0] in ("down", "click"):
+                self.last_action = "Left click" if a[1] == "left" else "Right click"
 
     def open_settings(self):
         self.requests.put("settings")
@@ -86,6 +94,13 @@ class UI(threading.Thread):
     def setup_feed(self, view, rgb):
         self.setup_view, self.setup_rgb, self.setup_new = view, rgb, True
 
+    def show_main(self, camera=False):
+        self.requests.put("main_camera" if camera else "main_show")
+
+    def main_feed(self, status, rgb):
+        status["last"] = self.last_action
+        self.main_status, self.main_rgb, self.main_new = status, rgb, True
+
     def stop(self):
         self.requests.put("quit")
 
@@ -99,6 +114,7 @@ class UI(threading.Thread):
             except Exception:
                 pass
             self._make_overlay()
+            self._make_main()
             self.root.after(16, self._tick)
             self.root.mainloop()
         except Exception:
@@ -134,10 +150,19 @@ class UI(threading.Thread):
                 elif req == "setup_close" and self.setup_win is not None:
                     self.setup_win.close()
                     self.setup_win = None
+                elif req in ("main_show", "main_camera") and self.main_win is not None:
+                    self.main_win.show()
+                    if req == "main_camera":
+                        self.main_win.toggle_camera_view(True)
             if self.setup_win is not None and self.setup_new:
                 self.setup_new = False
                 if self.setup_win.alive():
                     self.setup_win.show(self.setup_view, self.setup_rgb)
+            if self.main_win is not None and self.main_win.alive():
+                if self.main_new:
+                    self.main_new = False
+                    self.main_win.update(self.main_status, self.main_rgb)
+                self.main_wants_camera = self.main_win.wants_camera()
             self._draw()
         except Exception:
             log.exception("overlay tick failed")
@@ -216,6 +241,13 @@ class UI(threading.Thread):
             return ImageTk.PhotoImage(make_icon(COLORS["active"], 32), master=win)
         except Exception:
             return None
+
+    def _make_main(self):
+        from .main_window import MainWindow
+        self._main_icon = self._icon_for(self.root)
+        self.main_win = MainWindow(self.root, self.app, self._main_icon)
+        if self.app.args.background:
+            self.main_win.win.withdraw()
 
     def _open_setup(self):
         from .setup_window import SetupWindow

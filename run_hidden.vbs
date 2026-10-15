@@ -3,4 +3,4 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 Set sh = CreateObject("WScript.Shell")
 sh.CurrentDirectory = dir
-sh.Run """" & dir & "\.venv\Scripts\pythonw.exe"" -m gesture_control", 0, False
+sh.Run """" & dir & "\.venv\Scripts\pythonw.exe"" -m gesture_control --background", 0, False
