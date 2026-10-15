@@ -6,7 +6,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from gesture_control.config import load
+import copy
+
+from gesture_control.config import DEFAULTS
 from gesture_control.features import Hand
 from gesture_control.gestures import GestureEngine
 
@@ -14,8 +16,16 @@ REC = Path(__file__).resolve().parent.parent / "recordings"
 FILES = sorted(REC.glob("*.json")) if REC.exists() else []
 
 
+def recorded_cfg():
+    """Defaults plus the setup the recordings were made with (a right hand, calibrated box)."""
+    cfg = copy.deepcopy(DEFAULTS)
+    cfg["mapping"]["box"] = [0.200, 0.220, 0.700, 0.664]
+    cfg["tracking"]["hand"] = "right"
+    return cfg
+
+
 def replay(data, cfg=None):
-    eng = GestureEngine(cfg or load(), (0, 0, 2256, 1504))
+    eng = GestureEngine(cfg or recorded_cfg(), (0, 0, 2256, 1504))
     actions = []
     for fr in data["frames"]:
         h = fr["hand"]
@@ -35,11 +45,43 @@ def tally(actions):
     return c
 
 
+MIRROR_SWAP = {"keys:ctrl+tab": "keys:ctrl+shift+tab", "keys:ctrl+shift+tab": "keys:ctrl+tab"}
+
+
+def mirrored(data):
+    """The same recording as if done with the LEFT hand: flip x, swap the label, and expect
+    left/right swipes to swap (the hand now moves the other way)."""
+    out = {**data, "expect": {MIRROR_SWAP.get(k, k): v for k, v in data["expect"].items()}, "frames": []}
+    for fr in data["frames"]:
+        h = fr["hand"]
+        if h is not None:
+            img, world = np.array(h["img"]), np.array(h["world"])
+            img[:, 0] = 1 - img[:, 0]
+            world[:, 0] = -world[:, 0]
+            h = {**h, "img": img.tolist(), "world": world.tolist(),
+                 "handedness": {"Left": "Right", "Right": "Left"}[h["handedness"]]}
+        out["frames"].append({**fr, "hand": h})
+    return out
+
+
+def mirror_cfg():
+    cfg = recorded_cfg()
+    cfg["tracking"]["hand"] = "left"
+    x0, y0, x1, y1 = cfg["mapping"]["box"]
+    cfg["mapping"]["box"] = [1 - x1, y0, 1 - x0, y1]    # a left-hander calibrates the mirrored box
+    return cfg
+
+
 @pytest.mark.skipif(not FILES, reason="no recordings yet (run tools/record_landmarks.py)")
+@pytest.mark.parametrize("hand", ["right", "left"])
 @pytest.mark.parametrize("path", FILES, ids=[p.stem for p in FILES])
-def test_recording(path):
+def test_recording(path, hand):
     data = json.loads(path.read_text())
-    got = tally(replay(data))
+    if hand == "left":
+        data = mirrored(data)
+        got = tally(replay(data, mirror_cfg()))
+    else:
+        got = tally(replay(data))
     for key, want in data["expect"].items():
         if want == ">0":
             assert got[key] > 0, f"{key}: expected some, got none. All: {dict(got)}"

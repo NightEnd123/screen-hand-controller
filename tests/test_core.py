@@ -67,8 +67,9 @@ def test_mapping_corners_and_clamp():
 
 
 def test_default_box_matches_screen_shape():
-    x0, y0, x1, y1 = DEFAULTS["mapping"]["box"]
+    x0, y0, x1, y1 = engine().mapper.box
     assert ((x1 - x0) * 4 / 3) / (y1 - y0) == pytest.approx(2256 / 1504, rel=0.01)
+    assert (x0 + x1) / 2 == pytest.approx(0.5)
 
 
 def test_fit_box_pads_to_screen_aspect():
@@ -234,7 +235,7 @@ def test_brief_dropout_does_not_break_drag():
 
 def test_left_hand_and_tiny_hands_ignored():
     r = Run(engine()).feed(lambda i, n: pose("point", handedness="Left"), seconds=0.5)
-    r.feed(lambda i, n: pose("point", scale=0.6), seconds=0.5)
+    r.feed(lambda i, n: pose("point", scale=0.4), seconds=0.5)
     assert r.actions == [] and all(c is None for c in r.cursors)
 
 

@@ -180,7 +180,7 @@ class UI(threading.Thread):
         ("Scrolling, volume, swipes", None),
         ("gestures", "scroll_gain", "Scroll speed", 5, 60, 1, None),
         ("gestures", "volume_gain", "Volume change speed", 4, 30, 1, None),
-        ("gestures", "swipe_min_dist", "Swipe size needed", 0.15, 0.5, 0.01, "shorter swipes ←  → bigger swipes"),
+        ("gestures", "swipe_min_hands", "Swipe size needed (hand sizes)", 0.4, 1.5, 0.05, "shorter swipes ←  → bigger swipes"),
         ("Feedback", None),
         ("feedback", "overlay", "Show the dot next to the cursor", None, None, None, None),
         ("feedback", "sounds", "Sounds on pause / resume", None, None, None, None),

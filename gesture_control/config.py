@@ -10,15 +10,16 @@ MODEL_PATH = ROOT / "models" / "hand_landmarker.task"
 LOG_DIR = ROOT / "logs"
 
 DEFAULTS = {
+    "profile": {"setup_done": False},
     "camera": {
         "index": 0, "backend": "msmf", "width": 640, "height": 480,
         "active_fps": 30, "idle_fps": 10, "paused_fps": 5, "idle_after_s": 2.0,
     },
     "tracking": {
         "hand": "right", "swap_handedness": True, "min_detection_confidence": 0.6, "min_presence_confidence": 0.5,
-        "min_tracking_confidence": 0.5, "min_hand_size": 0.08, "zone_margin": 0.15,
+        "min_tracking_confidence": 0.5, "min_hand_size": 0.05, "zone_margin": 0.15,
     },
-    "mapping": {"box": [0.200, 0.220, 0.700, 0.664], "cursor_point": "index_tip"},
+    "mapping": {"box": [], "cursor_point": "index_tip"},
     "smoothing": {
         "min_cutoff": 0.5, "beta": 0.01, "d_cutoff": 1.0, "glide_ms": 15, "offset_decay_px": 400,
         "precision": True, "precision_gain": 0.4, "precision_slow": 100, "precision_fast": 800,
@@ -31,7 +32,7 @@ DEFAULTS = {
         "gesture_hold_s": 0.7, "volume_arm_s": 0.25, "volume_deadzone": 0.3, "volume_gain": 12.0,
         "volume_max": 15.0,
         "scroll_deadzone": 0.15, "scroll_gain": 20.0, "scroll_max": 40.0,
-        "swipe_min_dist": 0.30, "swipe_window_ms": 300, "swipe_axis_ratio": 2.0,
+        "swipe_min_hands": 0.75, "size_ref_halflife_s": 3.0, "swipe_settle_ms": 300, "swipe_facing": 0.7, "swipe_window_ms": 300, "swipe_axis_ratio": 2.0,
         "swipe_cooldown_ms": 800, "switcher_step": 0.5, "switcher_exit_frames": 6, "switcher_hold_ms": 300, "after_click_lockout_ms": 500,
         "switcher_timeout_s": 5.0, "thumb_hold_s": 0.8, "thumb_ext": 0.55,
         "typing_guard_s": 1.0,
