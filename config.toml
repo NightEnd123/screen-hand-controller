@@ -1,8 +1,12 @@
 # Gesture Control settings.
 # Edit, save, then use tray menu -> "Reload settings". Anything you delete falls back to the default.
+# The first-run setup (tray menu -> "Run setup again") fills in camera, hand, control box and pinch values.
+
+[profile]
+setup_done = false   # false = run the setup wizard at the next start
 
 [camera]
-index = 0            # 0 = Surface Camera Front
+index = 0            # which camera (0 = the first one Windows lists)
 backend = "msmf"     # "msmf" uses ~1% CPU; "dshow" opens faster (2 s vs 5 s) but costs more CPU
 width = 640
 height = 480
@@ -12,18 +16,18 @@ paused_fps = 5       # while paused (still watching for thumbs-up)
 idle_after_s = 2.0
 
 [tracking]
-hand = "right"                  # "right", "left" or "any"
-swap_handedness = true          # flip MediaPipe's left/right label (needed on this camera)
+hand = "right"                  # the hand you use: "right", "left" or "any"
+swap_handedness = true          # flip the tracker's left/right label (setup detects this for your camera)
 min_detection_confidence = 0.6
 min_presence_confidence = 0.5
 min_tracking_confidence = 0.5
-min_hand_size = 0.08            # wrist->middle knuckle, as a fraction of frame height. Smaller hands are ignored.
+min_hand_size = 0.05            # wrist->middle knuckle, as a fraction of frame height. Smaller (farther) hands are ignored.
 zone_margin = 0.15              # gestures fire only with your fingertip inside the control box +- this margin
 
 [mapping]
 # Control box in the (mirrored) camera image: [left, top, right, bottom], 0..1.
-# Set it with tray menu -> "Calibrate control box".
-box = [0.200, 0.220, 0.700, 0.664]
+# Set it with tray menu -> "Calibrate control box". Empty = a box in the middle of the view.
+box = []
 cursor_point = "index_tip"      # "index_tip" or "index_knuckle" (steadier during pinches)
 
 [smoothing]
@@ -66,7 +70,10 @@ scroll_hold_ms = 150            # hold the two-finger pose this long before scro
 scroll_deadzone = 0.15          # hand sizes of movement before scrolling starts
 scroll_gain = 20.0              # wheel notches per second per hand size beyond the dead zone
 scroll_max = 40.0               # notches per second cap
-swipe_min_dist = 0.30           # fraction of frame height
+swipe_min_hands = 0.75          # palm travel in hand sizes (wrist to middle knuckle) within swipe_window_ms
+swipe_settle_ms = 300           # a hand that just came into view can't swipe yet (raising it looks like a swipe up)
+swipe_facing = 0.7              # palm must keep facing the camera (lowering a hand away looks like a swipe down)
+size_ref_halflife_s = 3.0       # how fast the "typical hand size" follows you moving farther away
 swipe_window_ms = 300
 swipe_axis_ratio = 2.0
 swipe_cooldown_ms = 800

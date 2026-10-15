@@ -24,6 +24,11 @@ class BoxMapper:
         return x0 - margin <= x <= x1 + margin and y0 - margin <= y <= y1 + margin
 
 
+def default_box(screen_aspect, cam_aspect):
+    """Starting control box before calibration: the middle of the camera view, screen-shaped."""
+    return fit_box((0.30, 0.22), (0.70, 0.62), screen_aspect, cam_aspect)
+
+
 def fit_box(p1, p2, screen_aspect, cam_aspect, min_size=0.15):
     """Build a control box from two calibration corners, padded to the screen's shape.
 

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from .features import compute
 from .filters import OneEuro2D
-from .mapping import BoxMapper
+from .mapping import BoxMapper, default_box
 
 
 @dataclass
@@ -41,12 +41,17 @@ class GestureEngine:
     def __init__(self, cfg, screen):
         self.cfg = cfg
         self.g = cfg["gestures"]
-        self.mapper = BoxMapper(cfg["mapping"]["box"], screen)
+        box = cfg["mapping"]["box"]
+        if len(box) != 4:   # not calibrated yet
+            box = default_box(screen[2] / screen[3], cfg["camera"]["width"] / cfg["camera"]["height"])
+        self.mapper = BoxMapper(box, screen)
         s = cfg["smoothing"]
         self.filter = OneEuro2D(min_cutoff=s["min_cutoff"], beta=s["beta"], d_cutoff=s["d_cutoff"])
         self.paused = False
         self.last_seen = None
         self.prev_t = None
+        self.size_ref = 0.0
+        self.seen_since = 0.0
         self._reset()
 
     # ---- state -------------------------------------------------------------------------
@@ -168,7 +173,14 @@ class GestureEngine:
             self.mode = "paused" if self.paused else "idle"
             return Output(None, acts, self.mode, info)
 
+        if self.last_seen is None:
+            self.seen_since = t
         self.last_seen = t
+        # Typical hand size at this distance from the camera: the recent maximum. A tilted hand
+        # looks smaller for a moment, so the max ignores tilt but still follows the person
+        # moving nearer (instantly) or farther away (over a few seconds).
+        decay = 0.5 ** (dt / g["size_ref_halflife_s"])
+        self.size_ref = max(f.size, self.size_ref * decay)
         acts = []
         pose = self._stable_pose(f.pose)
         info.update(pose=pose, raw_pose=f.pose, ratio_l=f.ratio_l, ratio_r=f.ratio_r, ext=f.ext)
@@ -425,14 +437,22 @@ class GestureEngine:
         # Open-palm swipes.
         if f.pose == "palm":
             self.mode = "palm"
-            self.swipe_hist.append((t, f.palm, in_zone))
+            # facing: the palm still faces the camera (lowering or tipping the hand away makes it
+            # look much smaller, and moves it down -- not a swipe).
+            facing = f.size >= g["swipe_facing"] * self.size_ref
+            self.swipe_hist.append((t, f.palm, in_zone, facing))
             win = g["swipe_window_ms"] / 1000
             while self.swipe_hist and t - self.swipe_hist[0][0] > win:
                 self.swipe_hist.popleft()
-            if (t >= max(self.swipe_cool_until, self.lockout_until) and len(self.swipe_hist) >= 3
-                    and any(z for _, _, z in self.swipe_hist)):   # must pass through the control box
-                dx, dy = _sub(f.palm, self.swipe_hist[0][1])
-                r, md = g["swipe_axis_ratio"], g["swipe_min_dist"]
+            # A hand rising into view looks like a swipe up, so a swipe may only start once the
+            # hand has been in view for swipe_settle_ms.
+            settled = (self.swipe_hist[0][0] - self.seen_since >= g["swipe_settle_ms"] / 1000
+                       and all(h[3] for h in self.swipe_hist))
+            if (t >= max(self.swipe_cool_until, self.lockout_until) and len(self.swipe_hist) >= 3 and settled
+                    and any(h[2] for h in self.swipe_hist)):   # must pass through the control box
+                # Measured in hand sizes, so it works the same near or far from the camera.
+                dx, dy = (d / self.size_ref for d in _sub(f.palm, self.swipe_hist[0][1]))
+                r, md = g["swipe_axis_ratio"], g["swipe_min_hands"]
                 name = None
                 if abs(dx) >= md and abs(dx) >= r * abs(dy):
                     name = "swipe_right" if dx > 0 else "swipe_left"

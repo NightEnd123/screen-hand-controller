@@ -331,7 +331,7 @@ class App:
                             progress = i["hold"]
                     if out is not None and out.cursor is not None:
                         lines.append(f"cursor -> {round(out.cursor[0])}, {round(out.cursor[1])}")
-                    if not self.preview_win.show(mirrored, hand, self.cfg["mapping"]["box"], lines,
+                    if not self.preview_win.show(mirrored, hand, self.engine.mapper.box, lines,
                                                  mode, progress, banner):
                         self.preview = False
                         self.preview_win.close()
