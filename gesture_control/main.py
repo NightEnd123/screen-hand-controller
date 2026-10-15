@@ -540,7 +540,14 @@ def main(argv=None):
             None, f"Model file missing:\n{config.MODEL_PATH}\nRe-download the app (or run setup.ps1 from source).",
             "Gesture Control", 0x10)
         return 1
-    App(args).run()
+    try:
+        App(args).run()
+    except Exception as e:
+        log.exception("could not start")
+        ctypes.windll.user32.MessageBoxW(
+            None, f"Gesture Control could not start:\n{e}\n\nDetails are in {config.LOG_DIR / 'gesture-control.log'}",
+            "Gesture Control", 0x10)
+        return 1
     return 0
 
 
