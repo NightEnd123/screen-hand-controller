@@ -56,11 +56,11 @@ Tips:
 
 - **Status** at the top right: 🟢 Active · 🟡 Paused (watching for a thumbs-up) · ⚪ Camera off ·
   🔴 Camera problem (with tips on what to try) · 🔵 Setting up.
-- **Show camera view**: see what the app sees, with your hand's tracking points and the control
+- **Camera view → Show**: see what the app sees, with your hand's tracking points and the control
   area drawn on it. Handy for checking your hand is in view. The picture is never saved.
 - **Now / Last action**: the gesture it currently sees and the last thing it did.
-- Buttons for **Pause / Resume**, **Turn camera off**, **Gesture guide**, **Settings…**,
-  **Run setup again**, **Calibrate control area**, **Start with Windows** and **Quit**.
+- **Pause / Resume**, shortcuts for **Gesture guide**, **Settings**, **Run setup** and **Calibrate area**,
+  switches for **Camera on** and **Start with Windows**, and **Quit Gesture Control**.
 
 Closing the window doesn't quit; the app keeps working from the tray. To quit, use **Quit Gesture
 Control** in the window or **Quit** in the tray menu. With *Start with Windows* on, the app starts
@@ -89,7 +89,7 @@ targets. Moving fast is 1:1.
 | Problem | Try |
 |---|---|
 | Status says *Camera problem* / setup shows no picture | Close other apps using the camera (Teams, Zoom, Camera). Windows Settings → Privacy & security → Camera: turn on *Camera access* and *Let desktop apps access your camera*. In setup, try **Use another camera**. |
-| Nothing happens when I point | Click **Show camera view** to check your hand is tracked and inside the box. Use the hand you chose in setup, palm toward the screen, with some light on it. Or run setup again. |
+| Nothing happens when I point | Switch on **Camera view → Show** to check your hand is tracked and inside the box. Use the hand you chose in setup, palm toward the screen, with some light on it. Or run setup again. |
 | Clicks don't register | Run setup again and do the pinches the way you naturally would. Or Settings → *Pinch sensitivity* toward "tinier pinches". |
 | Accidental clicks | Settings → *Pinch sensitivity* toward "fewer accidental clicks". |
 | Cursor shaky when still | Settings → *Steadiness when still* lower. |

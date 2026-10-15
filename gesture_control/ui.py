@@ -6,11 +6,9 @@ queue requests that the Tk thread picks up on its next tick.
 import ctypes
 import logging
 import queue
-import subprocess
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk
 
 from .actions import cursor_pos
 
@@ -213,27 +211,6 @@ class UI(threading.Thread):
             self.overlay.attributes("-alpha", 1.0)
             self.shown = True
 
-    # ---- settings window -----------------------------------------------------------------------
-    # (section, key, label, low, high, step, hint)
-    SLIDERS = [
-        ("Cursor", None),
-        ("smoothing", "min_cutoff", "Steadiness when still", 0.1, 2.0, 0.05, "steadier ←  → more responsive"),
-        ("smoothing", "beta", "Keep-up on fast moves", 0.0, 0.05, 0.001, "smoother ←  → less lag"),
-        ("smoothing", "precision", "Precision mode (slow movement = finer control)", None, None, None, None),
-        ("smoothing", "precision_gain", "Precision strength", 0.2, 1.0, 0.05, "finer ←  → off"),
-        ("Clicks", None),
-        ("gestures", "pinch_dip", "Pinch sensitivity", 0.03, 0.10, 0.005, "tinier pinches count ←  → fewer accidental clicks"),
-        ("gestures", "release_freeze_ms", "Cursor hold after a click (ms)", 0, 400, 10, "helps double-clicks line up"),
-        ("Scrolling, volume, swipes", None),
-        ("gestures", "scroll_gain", "Scroll speed", 5, 60, 1, None),
-        ("gestures", "volume_gain", "Volume change speed", 4, 30, 1, None),
-        ("gestures", "swipe_min_hands", "Swipe size needed (hand sizes)", 0.4, 1.5, 0.05, "shorter swipes ←  → bigger swipes"),
-        ("Feedback", None),
-        ("feedback", "overlay", "Show the dot next to the cursor", None, None, None, None),
-        ("feedback", "sounds", "Sounds on pause / resume", None, None, None, None),
-        ("feedback", "notifications", "Pop-up notifications", None, None, None, None),
-    ]
-
     def _icon_for(self, win):
         try:
             from PIL import ImageTk
@@ -258,97 +235,9 @@ class UI(threading.Thread):
         self.setup_win = SetupWindow(self.root, self.app, self._setup_icon)
 
     def _show_settings(self):
-        if self.settings_win is not None and self.settings_win.winfo_exists():
-            self.settings_win.deiconify()
-            self.settings_win.lift()
-            self.settings_win.focus_force()
+        from .settings_window import SettingsWindow
+        if self.settings_win is not None and self.settings_win.alive():
+            self.settings_win.show()
             return
-        from . import config
-        cfg = self.app.cfg
-        win = tk.Toplevel(self.root)
-        win.title("Gesture Control settings")
-        try:
-            from PIL import ImageTk
-            from .tray import COLORS, make_icon
-            self._icon = ImageTk.PhotoImage(make_icon(COLORS["active"], 32), master=win)
-            win.iconphoto(False, self._icon)
-        except Exception:
-            pass
-        win.attributes("-topmost", True)
-        win.resizable(False, False)
-        body = ttk.Frame(win, padding=14)
-        body.pack(fill="both", expand=True)
-        self.vars = {}
-        row = 0
-        for item in self.SLIDERS:
-            if item[1] is None:
-                ttk.Label(body, text=item[0], font=("Segoe UI", 11, "bold")).grid(
-                    row=row, column=0, columnspan=3, sticky="w", pady=(10 if row else 0, 2))
-                row += 1
-                continue
-            sec, key, text, lo, hi, step, hint = item
-            value = cfg[sec][key]
-            if lo is None:
-                var = tk.BooleanVar(value=bool(value))
-                ttk.Checkbutton(body, text=text, variable=var).grid(row=row, column=0, columnspan=3, sticky="w")
-            else:
-                var = tk.DoubleVar(value=float(value))
-                ttk.Label(body, text=text).grid(row=row, column=0, sticky="w", padx=(0, 10))
-                shown = ttk.Label(body, width=6)
-                shown.grid(row=row, column=2, sticky="e")
-
-                def show(_=None, v=var, lbl=shown, st=step):
-                    q = round(round(v.get() / st) * st, 4)
-                    v.set(q)
-                    lbl.config(text=f"{q:g}")
-                tk.Scale(body, from_=lo, to=hi, resolution=step, orient="horizontal", length=260,
-                         variable=var, showvalue=False, command=show).grid(row=row, column=1, sticky="we")
-                show()
-                var.trace_add("write", lambda *_, f=show, v=var, lbl=shown: lbl.config(text=f"{v.get():g}"))
-                if hint:
-                    row += 1
-                    ttk.Label(body, text=hint, foreground="#6e7781", font=("Segoe UI", 8)).grid(
-                        row=row, column=1, sticky="w")
-            self.vars[(sec, key)] = (var, lo is None, step)
-            row += 1
-
-        apps = cfg.get("apps") or {}
-        app_text = ", ".join(apps) if apps else "none set up"
-        ttk.Label(body, text=f"Per-app gestures: {app_text}", foreground="#6e7781").grid(
-            row=row, column=0, columnspan=3, sticky="w", pady=(12, 0))
-        row += 1
-        buttons = ttk.Frame(body)
-        buttons.grid(row=row, column=0, columnspan=3, sticky="e", pady=(14, 0))
-
-        def save():
-            updates = {}
-            for (sec, key), (var, is_bool, step) in self.vars.items():
-                v = var.get()
-                if is_bool:
-                    updates[(sec, key)] = bool(v)
-                elif float(step).is_integer() and float(config.DEFAULTS[sec][key]).is_integer():
-                    updates[(sec, key)] = int(round(v))
-                else:
-                    updates[(sec, key)] = round(float(v), 4)
-            try:
-                config.set_values(updates)
-            except Exception as e:
-                log.exception("saving settings failed")
-                ttk.Label(body, text=f"Could not save: {e}", foreground="red").grid(row=row + 1, column=0, columnspan=3)
-                return
-            self.app.reload_settings()
-            win.destroy()
-
-        def defaults():
-            for (sec, key), (var, is_bool, step) in self.vars.items():
-                var.set(config.DEFAULTS[sec][key])
-
-        def edit_file():
-            subprocess.Popen(["notepad.exe", str(config.CONFIG_PATH)])
-
-        ttk.Button(buttons, text="Edit per-app gestures…", command=edit_file).pack(side="left", padx=(0, 24))
-        ttk.Button(buttons, text="Defaults", command=defaults).pack(side="left", padx=4)
-        ttk.Button(buttons, text="Cancel", command=win.destroy).pack(side="left", padx=4)
-        ttk.Button(buttons, text="Save", command=save).pack(side="left", padx=4)
-        self.settings_win = win
-        win.focus_force()
+        self._settings_icon = self._icon_for(self.root)
+        self.settings_win = SettingsWindow(self.root, self.app, self._settings_icon)

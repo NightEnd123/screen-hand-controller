@@ -36,7 +36,12 @@ def set_dpi_aware():
 
 
 def single_instance():
-    handle = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\GestureControlSingleton")
+    name = "Local\\GestureControlSingleton"
+    home = os.environ.get("GESTURE_CONTROL_HOME")
+    if home:   # a separate settings folder (testing) is a separate instance
+        import hashlib
+        name += "-" + hashlib.sha1(os.path.abspath(home).lower().encode()).hexdigest()[:12]
+    handle = ctypes.windll.kernel32.CreateMutexW(None, False, name)
     if ctypes.windll.kernel32.GetLastError() == 183:   # ERROR_ALREADY_EXISTS
         ctypes.windll.user32.MessageBoxW(None, "Gesture Control is already running (see the tray).", "Gesture Control", 0x40)
         sys.exit(0)

@@ -9,3 +9,5 @@ recordings/sessions/
 build/
 dist/
 config.toml
+dist-new/
+build-new/
