@@ -1,0 +1,108 @@
+# Gesture Control settings.
+# Edit, save, then use tray menu -> "Reload settings". Anything you delete falls back to the default.
+
+[camera]
+index = 0            # 0 = Surface Camera Front
+backend = "msmf"     # "msmf" uses ~1% CPU; "dshow" opens faster (2 s vs 5 s) but costs more CPU
+width = 640
+height = 480
+active_fps = 30      # processing rate while your hand is in view
+idle_fps = 10        # after idle_after_s with no hand
+paused_fps = 5       # while paused (still watching for thumbs-up)
+idle_after_s = 2.0
+
+[tracking]
+hand = "right"                  # "right", "left" or "any"
+swap_handedness = true          # flip MediaPipe's left/right label (needed on this camera)
+min_detection_confidence = 0.6
+min_presence_confidence = 0.5
+min_tracking_confidence = 0.5
+min_hand_size = 0.08            # wrist->middle knuckle, as a fraction of frame height. Smaller hands are ignored.
+zone_margin = 0.15              # gestures fire only with your fingertip inside the control box +- this margin
+
+[mapping]
+# Control box in the (mirrored) camera image: [left, top, right, bottom], 0..1.
+# Set it with tray menu -> "Calibrate control box".
+box = [0.200, 0.220, 0.700, 0.664]
+cursor_point = "index_tip"      # "index_tip" or "index_knuckle" (steadier during pinches)
+
+[smoothing]
+# One Euro filter: lower min_cutoff = less jitter when still; higher beta = less lag when moving fast.
+min_cutoff = 0.5
+beta = 0.01
+d_cutoff = 1.0
+glide_ms = 15                   # output thread eases toward the target over about this long
+precision = true                # slow, careful movement moves the cursor less (finer control)
+precision_gain = 0.4            # how much less: 0.4 = 40% speed when moving slowly (1.0 = off)
+precision_slow = 100            # below this hand speed (screen px/s) precision is fully on
+precision_fast = 800            # above this it's 1:1 again
+offset_decay_px = 400           # after a freeze, the cursor re-syncs with your finger over this much movement
+
+[gestures]
+pose_frames = 3                 # frames a hand shape must hold before it counts
+pinch_frames = 2
+release_frames = 2              # frames the pinch must stay open to count as released
+# A pinch = the thumb-to-fingertip gap (divided by hand size) dips quickly by at least pinch_dip
+# and ends below pinch_max_*. Tiny pinches work because only the dip matters, not a full close.
+pinch_dip = 0.05                # smaller = tinier pinches count (but more accidental clicks)
+pinch_max_left = 0.22           # gap must end below this for a left click
+pinch_max_right = 0.30          # ... for a right click (thumb + middle)
+pinch_window_ms = 600           # the dip is measured against the widest gap in this window
+release_frac = 0.5              # released once the gap reopens this fraction of the way back
+ok_gap = 0.5                    # 👌 pointing: thumb-index gap under this (open palm is ~0.9)
+pinch_off = 0.45                # a gap this wide always counts as released
+drag_threshold_px = 30          # movement during a pinch before it becomes a drag
+release_freeze_ms = 180         # cursor holds still briefly after a click so double-clicks line up
+snap_lookback_ms = 300
+hand_lost_grace_ms = 200
+victory_gap = 0.6               # index-middle spread for the V-sign (scroll pose is under two_finger_together)
+gesture_hold_s = 0.7            # hold V-sign / call-me this long to fire
+volume_arm_s = 0.25             # V-sign held this long before up/down movement changes volume
+volume_deadzone = 0.3           # hand-lengths of movement before volume starts changing
+volume_gain = 12.0              # volume steps per second per hand-length beyond the dead zone
+volume_max = 15.0
+two_finger_together = 0.45      # index-middle tip gap / hand size for the scroll pose
+scroll_hold_ms = 150            # hold the two-finger pose this long before scroll mode starts
+scroll_deadzone = 0.15          # hand sizes of movement before scrolling starts
+scroll_gain = 20.0              # wheel notches per second per hand size beyond the dead zone
+scroll_max = 40.0               # notches per second cap
+swipe_min_dist = 0.30           # fraction of frame height
+swipe_window_ms = 300
+swipe_axis_ratio = 2.0
+swipe_cooldown_ms = 800
+switcher_step = 0.5             # palm movement per window, in hand-lengths (about 5 cm)
+switcher_exit_frames = 6
+switcher_hold_ms = 300           # hold three fingers this long to open the switcher
+after_click_lockout_ms = 500    # no swipes / switcher this soon after a click
+switcher_timeout_s = 5.0
+thumb_hold_s = 0.8
+thumb_ext = 0.55                # thumb tip to middle knuckle / hand size to count the thumb as out
+typing_guard_s = 1.0            # ignore gestures this long after a real key press (0 = off)
+
+[shortcuts]
+swipe_right = "ctrl+tab"
+swipe_left = "ctrl+shift+tab"
+swipe_up = "window:maximize"
+swipe_down = "window:minimize"
+victory_hold = "play_pause"     # V-sign held
+call_hold = "win+h"             # call-me sign held: Windows voice typing
+# Key names: ctrl, shift, alt, win, tab, enter, esc, left/right/up/down, a-z, 0-9, f1-f12,
+# play_pause, media_next, media_prev, volume_up, volume_down, volume_mute; or window:minimize / window:maximize
+
+[hotkey]
+toggle = "ctrl+alt+g"
+
+[feedback]
+sounds = true
+notifications = true
+overlay = true                  # the small dot next to the cursor (mode, click flash, hold ring, action labels)
+
+# Per-app gestures: when this program is in front, these replace the [shortcuts] above.
+# Use the program's file name (Task Manager > Details shows it).
+[apps."POWERPNT.EXE"]
+swipe_right = "right"           # next slide
+swipe_left = "left"             # previous slide
+
+[apps."Spotify.exe"]
+swipe_right = "media_next"
+swipe_left = "media_prev"

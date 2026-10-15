@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+logs/
+models/*.task
+.claude/settings.local.json
+recordings/sessions/
+build/
+dist/
