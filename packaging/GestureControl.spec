@@ -20,6 +20,8 @@ datas += collect_data_files("mediapipe", excludes=["**/test/**", "**/testdata/**
 
 hiddenimports = collect_submodules("mediapipe.tasks.python", filter=lambda m: ".test" not in m)
 hiddenimports += ["mediapipe.tasks.c", "pystray._win32", "PIL.ImageTk"]
+# WinRT bindings: only imported when running as the Microsoft Store app (packaged.py)
+hiddenimports += collect_submodules("winrt")
 
 a = Analysis(
     [str(ROOT / "packaging" / "launcher.py")],

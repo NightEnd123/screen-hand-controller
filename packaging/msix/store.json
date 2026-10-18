@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy these from Partner Center > your app > Product management > Product identity, then rebuild.",
+  "identity_name": "REPLACE.WithPackageIdentityName",
+  "publisher": "CN=REPLACE-WITH-PUBLISHER-ID",
+  "publisher_display_name": "REPLACE with Publisher display name",
+  "display_name": "Gesture Control"
+}

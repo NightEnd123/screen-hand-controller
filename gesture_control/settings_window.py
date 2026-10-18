@@ -60,7 +60,7 @@ class SettingsWindow:
         w = X0 * 2 + CW * 2 + GAP
         h = Y0 + max(heights) + 24 + 52 + 24
         g = self.g = Glass(win, w, h)
-        g.canvas.create_line(g.px(30), g.px(28), g.px(30), g.px(80), fill="#c7d4ff", width=max(1, g.px(2)))
+        g.accent_line(30, 28, 80)
         g.text(46, 22, "Settings", 22, "bold", kind="display")
         g.text(48, 60, "Changes apply when you click Save.", 11, color=SOFT)
 

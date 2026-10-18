@@ -1,8 +1,8 @@
-"""Frosted-glass look for the app's windows (one Tk Canvas per window + Pillow).
+"""Dark neon look for the app's windows (one Tk Canvas per window + Pillow).
 
-The background of a window (colour gradient, soft blobs, and every glass card and pill) is
-rendered once with Pillow into one image: each card blurs what is behind it, tints it white,
-rounds the corners and gets a light border and a soft shadow. Live things are canvas items on
+The background of a window (charcoal, soft dark spheres, glowing blue/violet lines and rings, and
+every card and pill) is rendered once with Pillow into one image: each card blurs what is behind
+it, darkens it, rounds the corners and gets a faint border and a soft shadow. Live things are canvas items on
 top: text, icons, the camera picture, hover highlights, toggles, sliders and progress bars.
 
 Coordinates given to Glass are logical (96-dpi) pixels; Glass scales them for the screen.
@@ -16,12 +16,13 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageTk
 
 TEXT = "#ffffff"
-SOFT = "#eef1ff"
-MUTED = "#d5ddfb"
-DEEP = "#24307a"           # text on bright (white) pills
-STOPS = [(0.00, (12, 42, 118)), (0.30, (52, 98, 210)), (0.55, (150, 132, 230)),
-         (0.78, (240, 136, 184)), (1.00, (252, 180, 110))]
-TITLE_BAR = (16, 46, 124)  # Windows 11 title bar colour, matches the top-left of the gradient
+SOFT = "#b9bdcc"
+MUTED = "#7f8498"
+ACCENT = "#7c5cff"         # violet: switches, progress, highlights
+BLUE = (37, 99, 255)
+VIOLET = (112, 80, 255)
+BG_TOP, BG_BOTTOM = (24, 25, 29), (15, 16, 19)
+TITLE_BAR = (21, 22, 26)   # Windows 11 title bar colour, matches the top of the background
 
 ICONS = {   # Segoe Fluent Icons / Segoe MDL2 Assets code points
     "play": "", "pause": "", "camera": "", "settings": "",
@@ -74,57 +75,92 @@ def style_title_bar(win):
 
 # ---- Pillow rendering -------------------------------------------------------------------------
 
-def background(w, h):
-    """Diagonal blue -> violet -> pink -> orange gradient with soft blobs, as RGBA. The smooth
-    parts are rendered at quarter size and scaled up; the spheres' edges at full size."""
-    full_w, full_h = w, h
-    w, h = max(w // 4, 1), max(h // 4, 1)
-    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
-    t = np.clip(0.42 * xs / max(w, 1) + 0.58 * ys / max(h, 1), 0, 1)
-    out = np.zeros((h, w, 3), np.float32)
-    for (t0, c0), (t1, c1) in zip(STOPS, STOPS[1:]):
-        m = (t >= t0) & (t <= t1)
-        k = ((t - t0) / (t1 - t0))[m][:, None]
-        out[m] = np.array(c0) * (1 - k) + np.array(c1) * k
-    img = Image.fromarray(out.astype(np.uint8)).convert("RGBA")
+def background(w, h, dots=True):
+    """Charcoal with soft dark spheres, glowing blue/violet lines and rings, a dotted blue row and a
+    violet bar (laid out relative to the window size), as RGBA."""
+    ys = np.linspace(0, 1, h, dtype=np.float32)[:, None, None]
+    grad = np.array(BG_TOP, np.float32) * (1 - ys) + np.array(BG_BOTTOM, np.float32) * ys
+    img = Image.fromarray(np.repeat(grad, w, axis=1).astype(np.uint8)).convert("RGBA")
     big = max(w, h)
-    # soft glows (heavily blurred) then two glassy spheres
-    for cx, cy, r, color, a, blur in ((0.98, 1.02, 0.42, (255, 168, 96), 0.55, 0.10),
-                                      (0.62, 0.70, 0.26, (255, 120, 176), 0.35, 0.10),
-                                      (0.10, 0.35, 0.22, (120, 150, 255), 0.30, 0.10)):
-        img = _blob(img, cx * w, cy * h, r * big, color, a, blur * big)
-    w, h = full_w, full_h
-    img = img.resize((w, h), Image.BICUBIC)
-    big = max(w, h)
-    img = _sphere(img, 0.93 * w, 0.02 * h, 0.30 * big, (156, 186, 248), 0.65)
-    img = _sphere(img, 0.02 * w, 1.00 * h, 0.26 * big, (150, 132, 236), 0.55)
+    s = big / 1000
+    for cx, cy, r in ((0.20, -0.03, 0.13), (0.15, 0.46, 0.065), (0.79, 1.03, 0.21), (1.01, 0.68, 0.075)):
+        img = _dark_sphere(img, cx * w, cy * h, r * big)
+    P = lambda x, y: (x * w, y * h)   # noqa: E731
+    shapes = [("line", (*P(0.33, 0.19), *P(0.47, -0.01)), BLUE),
+              ("line", (*P(0.47, 0.09), *P(0.545, -0.01)), BLUE),
+              ("line", (*P(0.05, 0.61), *P(0.26, 0.29)), VIOLET),
+              ("line", (*P(-0.01, 0.81), *P(0.07, 0.70)), BLUE),
+              ("line", (*P(0.83, 0.69), *P(1.01, 0.42)), BLUE),
+              ("ring", (*P(0.06, 0.29), 0.028 * big), VIOLET),
+              ("ring", (*P(0.935, 0.52), 0.115 * big), VIOLET),
+              ("ring", (*P(0.935, 0.90), 0.03 * big), VIOLET)]
+    img = neon_shapes(img, shapes, s, width=3.4)
+    d = ImageDraw.Draw(img)
+    q = 0.0115 * big                                                    # dotted blue row
+    x = 0.66 * w if dots else w
+    while x < 0.945 * w:
+        d.rectangle((x, 0.065 * h, x + q, 0.065 * h + q), fill=(10, 82, 255, 255))
+        x += 0.031 * w
+    d.rectangle((0.955 * w, 0, w, 0.28 * h), fill=(68, 44, 200, 255))  # violet bar
     return img
 
 
-def _blob(img, cx, cy, r, color, alpha, blur):
-    layer = Image.new("RGBA", img.size, color + (0,))
-    a = Image.new("L", img.size, 0)
-    ImageDraw.Draw(a).ellipse((cx - r, cy - r, cx + r, cy + r), fill=int(255 * alpha))
-    layer.putalpha(a.filter(ImageFilter.GaussianBlur(blur)))
-    return Image.alpha_composite(img, layer)
-
-
-def _sphere(img, cx, cy, r, color, alpha):
-    """A translucent ball: soft edge, lighter towards its top-left, a thin bright rim."""
-    x0, y0 = int(cx - r - 4), int(cy - r - 4)
-    size = int(2 * r + 8)
+def _dark_sphere(img, cx, cy, r):
+    """A soft charcoal ball: a little lighter than the background, with a shadow below-right."""
+    sh = Image.new("L", img.size, 0)
+    ImageDraw.Draw(sh).ellipse((cx - r + 0.05 * r, cy - r + 0.09 * r, cx + r + 0.05 * r, cy + r + 0.09 * r), fill=150)
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    layer.putalpha(sh.filter(ImageFilter.GaussianBlur(max(r * 0.12, 2))))
+    img = Image.alpha_composite(img, layer)
+    x0, y0 = int(cx - r - 3), int(cy - r - 3)
+    size = int(2 * r + 6)
     ys, xs = np.mgrid[0:size, 0:size].astype(np.float32)
     d = np.hypot(xs + x0 - cx, ys + y0 - cy) / r
-    hl = np.hypot(xs + x0 - (cx - 0.35 * r), ys + y0 - (cy - 0.35 * r)) / r
-    body = np.clip((1 - d) * r / 1.5, 0, 1)                       # 1.5 px anti-aliased edge
-    shade = np.clip(1 - hl * 0.6, 0.35, 1)[..., None]
-    rgb = np.array(color, np.float32) * (0.75 + 0.25 * shade) + 255 * 0.18 * shade
-    rim = np.clip(1 - np.abs(d - 0.985) * r / 2.0, 0, 1) * 0.35
-    a = np.clip(body * alpha * (0.55 + 0.45 * shade[..., 0]) + rim, 0, 1)
-    patch = np.dstack([np.clip(rgb, 0, 255), a * 255]).astype(np.uint8)
+    hl = np.hypot(xs + x0 - (cx - 0.4 * r), ys + y0 - (cy - 0.4 * r)) / r
+    a = np.clip((1 - d) * r / 1.2, 0, 1)
+    shade = np.clip(1.25 - hl, 0, 1)[..., None]
+    rgb = np.array((27, 28, 32), np.float32) + shade * 7
+    patch = np.dstack([rgb.repeat(1, 2) if False else np.broadcast_to(rgb, (size, size, 3)), a * 255]).astype(np.uint8)
     layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     layer.paste(Image.fromarray(patch, "RGBA"), (x0, y0))
     return Image.alpha_composite(img, layer)
+
+
+def neon_shapes(img, shapes, s, width=2.2):
+    """Draw glowing lines ("line", (x0, y0, x1, y1), rgb) and rings ("ring", (cx, cy, r), rgb)."""
+    ss = 2
+    core = Image.new("RGBA", (img.width * ss, img.height * ss), (0, 0, 0, 0))
+    d = ImageDraw.Draw(core)
+    lw = max(int(width * s * ss), 2)
+    for kind, g, rgb in shapes:
+        if kind == "line":
+            d.line([v * ss for v in g], fill=rgb + (255,), width=lw)
+        else:
+            cx, cy, r = (v * ss for v in g)
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=rgb + (255,), width=lw)
+    core = core.resize(img.size, Image.LANCZOS)
+    glow = core.filter(ImageFilter.GaussianBlur(max(7 * s, 2)))
+    a = np.asarray(glow.getchannel("A"), np.float32)
+    glow.putalpha(Image.fromarray(np.clip(a * 3.4, 0, 255).astype(np.uint8)))
+    return Image.alpha_composite(Image.alpha_composite(img, glow), core)
+
+
+def neon_pill(w, h, r, m):
+    """Violet-to-blue rounded pill with a soft glow; returned with margin m on every side."""
+    xs = np.linspace(0, 1, w, dtype=np.float32)[None, :, None]
+    col = np.array(VIOLET, np.float32) * (1 - xs) + np.array(BLUE, np.float32) * xs
+    body = Image.fromarray(np.repeat(col, h, axis=0).astype(np.uint8)).convert("RGBA")
+    mask = rounded_mask(w, h, r)
+    body.putalpha(mask)
+    out = Image.new("RGBA", (w + 2 * m, h + 2 * m), VIOLET + (0,))
+    halo = Image.new("L", out.size, 0)
+    halo.paste(mask, (m, m))
+    out.putalpha(Image.fromarray((np.asarray(halo.filter(ImageFilter.GaussianBlur(m * 0.45)), np.float32) * 0.55).astype(np.uint8)))
+    out.alpha_composite(body, (m, m))
+    hi = Image.new("RGBA", (w, h), (255, 255, 255, 0))       # soft top sheen
+    hi.putalpha(Image.fromarray((np.asarray(_vgrad(w, h, 0.18, 0.0), np.float32) * np.asarray(mask, np.float32) / 255).astype(np.uint8)))
+    out.alpha_composite(hi, (m, m))
+    return out
 
 
 def rounded_mask(w, h, r, ss=4):
@@ -138,36 +174,38 @@ def _vgrad(w, h, top, bottom):
     return Image.fromarray((np.repeat(col, w, 1) * 255).astype(np.uint8), "L")
 
 
-def glass_card(base, box, r, s, tint=0.16, shadow=0.20, border=0.55, blur=18):
-    """Composite one frosted-glass rounded rectangle onto `base` (RGBA) and return the result."""
+def glass_card(base, box, r, s, lift=0.04, shadow=0.45, border=0.11, blur=18):
+    """Composite one dark glass rounded rectangle onto `base` (RGBA) and return the result."""
     x0, y0, x1, y1 = (int(round(v)) for v in box)
     w, h = x1 - x0, y1 - y0
     if w <= 2 or h <= 2:
         return base
     # soft shadow underneath
-    m = int(26 * s)
+    m = int(30 * s)
     sh = Image.new("L", (w + 2 * m, h + 2 * m), 0)
-    ImageDraw.Draw(sh).rounded_rectangle((m, m + int(8 * s), m + w, m + h + int(8 * s)), r, fill=int(255 * shadow))
-    sh = sh.filter(ImageFilter.GaussianBlur(12 * s))
-    layer = Image.new("RGBA", sh.size, (34, 26, 96, 0))
+    ImageDraw.Draw(sh).rounded_rectangle((m, m + int(10 * s), m + w, m + h + int(10 * s)), r, fill=int(255 * shadow))
+    sh = sh.filter(ImageFilter.GaussianBlur(14 * s))
+    layer = Image.new("RGBA", sh.size, (0, 0, 0, 0))
     layer.putalpha(sh)
     base = base.copy()
     base.alpha_composite(layer, (x0 - m, y0 - m))
-    # frosted: blur what's behind, tint white with a top-lit gradient
+    # frosted: blur what's behind, darken it, and light it a touch from the top
     pad = int(blur * 2 * s)
     region = base.crop((x0 - pad, y0 - pad, x1 + pad, y1 + pad)).filter(ImageFilter.GaussianBlur(blur * s))
     region = region.crop((pad, pad, pad + w, pad + h))
+    dark = Image.new("RGBA", (w, h), (28, 29, 35, 180))
+    region = Image.alpha_composite(region, dark)
     white = Image.new("RGBA", (w, h), (255, 255, 255, 0))
-    white.putalpha(_vgrad(w, h, tint + 0.08, max(tint - 0.05, 0.02)))
+    white.putalpha(_vgrad(w, h, lift + 0.03, max(lift - 0.03, 0.0)))
     region = Image.alpha_composite(region, white)
     mask = rounded_mask(w, h, r)
     base.paste(region, (x0, y0), mask)
-    # light border, brighter at the top
-    bw = max(1, round(1.2 * s))
+    # faint border, brighter at the top
+    bw = max(1, round(1.0 * s))
     inner = Image.new("L", (w, h), 0)
     inner.paste(rounded_mask(w - 2 * bw, h - 2 * bw, max(r - bw, 1)), (bw, bw))
-    ring = Image.fromarray(np.clip(np.asarray(mask, np.int16) - np.asarray(inner, np.int16), 0, 255).astype(np.uint8))
-    ring = Image.fromarray((np.asarray(ring, np.float32) * np.asarray(_vgrad(w, h, border, border * 0.3), np.float32) / 255).astype(np.uint8))
+    ring = np.clip(np.asarray(mask, np.int16) - np.asarray(inner, np.int16), 0, 255).astype(np.float32)
+    ring = Image.fromarray((ring * np.asarray(_vgrad(w, h, border, border * 0.35), np.float32) / 255).astype(np.uint8))
     edge = Image.new("RGBA", (w, h), (255, 255, 255, 0))
     edge.putalpha(ring)
     base.alpha_composite(edge, (x0, y0))
@@ -205,13 +243,14 @@ def hex_rgb(h):
 class Glass:
     """One window's canvas. Build: add cards/widgets, then finish(). Widgets stay live after."""
 
-    def __init__(self, parent, w, h):
+    def __init__(self, parent, w, h, dots=True):
+        """dots=False leaves out the dotted row at the top right (where a window has its own)."""
         self.s = screen_scale()
         self.w, self.h = w, h
         self.canvas = tk.Canvas(parent, width=self.px(w), height=self.px(h), highlightthickness=0, bd=0,
-                                bg="#203c94")
+                                bg="#16171a")
         self.canvas.pack()
-        self.bg0 = background(self.px(w), self.px(h))
+        self.bg0 = background(self.px(w), self.px(h), dots)
         self.base = self.bg0.copy()
         self.widgets = []
         self.images = []          # keep PhotoImage references alive
@@ -242,9 +281,23 @@ class Glass:
 
     # baked layers
     def card(self, x, y, w, h, r=22, tint=0.16, shadow=0.20):
+        """A dark glass card. tint = how much lighter than the background (0.16 normal)."""
         self.base = glass_card(self.base, (self.px(x), self.px(y), self.px(x + w), self.px(y + h)),
-                               self.px(r), self.s, tint=tint, shadow=shadow)
+                               self.px(r), self.s, lift=tint * 0.25, shadow=min(0.25 + shadow * 1.5, 0.6))
         return (x, y, w, h)
+
+    def neon_card(self, x, y, w, h, r):
+        """The bright violet-to-blue pill used for the main action."""
+        m = self.px(18)
+        self.base.alpha_composite(neon_pill(self.px(w), self.px(h), self.px(r), m), (self.px(x) - m, self.px(y) - m))
+
+    def accent_line(self, x, y0, y1):
+        """A glowing violet vertical line (beside headings)."""
+        self.base = neon_shapes(self.base, [("line", (self.px(x), self.px(y0), self.px(x), self.px(y1)), VIOLET)], self.s)
+
+    def ring(self, cx, cy, r, color=VIOLET, width=1.6):
+        self.base = neon_shapes(self.base, [("ring", (self.px(cx), self.px(cy), self.px(r)), color)], self.s,
+                                width=width)
 
     def finish(self):
         p = self.photo(self.base)
@@ -383,12 +436,15 @@ class Button(Widget):
         super().__init__(g, x, y, w, h)
         self.command = command
         r = h / 2 if r is None else r
-        g.card(x, y, w, h, r=r, tint=0.30 if strong else 0.16, shadow=0.14)
+        if strong:
+            g.neon_card(x, y, w, h, r)
+        else:
+            g.card(x, y, w, h, r=r, tint=0.22, shadow=0.14)
         pw, ph = g.px(w), g.px(h)
         hover = Image.new("RGBA", (pw, ph), (255, 255, 255, 0))
-        hover.putalpha(Image.fromarray((np.asarray(rounded_mask(pw, ph, g.px(r)), np.float32) * 0.16).astype(np.uint8)))
+        hover.putalpha(Image.fromarray((np.asarray(rounded_mask(pw, ph, g.px(r)), np.float32) * 0.08).astype(np.uint8)))
         press = hover.copy()
-        press.putalpha(Image.fromarray((np.asarray(rounded_mask(pw, ph, g.px(r)), np.float32) * 0.30).astype(np.uint8)))
+        press.putalpha(Image.fromarray((np.asarray(rounded_mask(pw, ph, g.px(r)), np.float32) * 0.16).astype(np.uint8)))
         self.hover_img, self.press_img = g.photo(hover), g.photo(press)
         self.hl = g.canvas.create_image(self.box[0], self.box[1], image=self.hover_img, anchor="nw", state="hidden")
         self.items.append(self.hl)
@@ -432,13 +488,14 @@ class Tile(Button):
         self.command = command
         d = 46
         cx = x + w / 2
-        g.card(cx - d / 2, y + 6, d, d, r=d / 2, tint=0.22, shadow=0.10)
+        g.card(cx - d / 2, y + 6, d, d, r=d / 2, tint=0.3, shadow=0.10)
+        g.ring(cx, y + 6 + d / 2, d / 2 - 1, width=1.4)
         pw, ph = g.px(w), g.px(h)
         mk = rounded_mask(pw, ph, g.px(18))
         hover = Image.new("RGBA", (pw, ph), (255, 255, 255, 0))
-        hover.putalpha(Image.fromarray((np.asarray(mk, np.float32) * 0.12).astype(np.uint8)))
+        hover.putalpha(Image.fromarray((np.asarray(mk, np.float32) * 0.06).astype(np.uint8)))
         press = hover.copy()
-        press.putalpha(Image.fromarray((np.asarray(mk, np.float32) * 0.24).astype(np.uint8)))
+        press.putalpha(Image.fromarray((np.asarray(mk, np.float32) * 0.12).astype(np.uint8)))
         self.hover_img, self.press_img = g.photo(hover), g.photo(press)
         self.hl = g.canvas.create_image(self.box[0], self.box[1], image=self.hover_img, anchor="nw", state="hidden")
         self.icon_item = g.icon(cx, y + 6 + d / 2, icon, 16)
@@ -453,11 +510,11 @@ class Toggle(Widget):
         super().__init__(g, x, y, self.W, self.H)
         self.command, self.value = command, bool(value)
         pw, ph = g.px(self.W), g.px(self.H)
-        self.on_img = g.photo(pill_image(pw, ph, (255, 255, 255, 235)))
-        self.off_img = g.photo(pill_image(pw, ph, (255, 255, 255, 70)))
+        self.on_img = g.photo(pill_image(pw, ph, hex_rgb(ACCENT) + (255,)))
+        self.off_img = g.photo(pill_image(pw, ph, (50, 52, 61, 255)))
         k = ph - g.px(6)
-        knob_on = glow_dot(k, hex_rgb("#5b5bd6")).resize((k * 3, k * 3))
-        knob_off = glow_dot(k, (255, 255, 255))
+        knob_on = glow_dot(k, (255, 255, 255))
+        knob_off = glow_dot(k, (150, 154, 170))
         self.kon, self.koff = g.photo(knob_on), g.photo(knob_off)
         self.track = g.canvas.create_image(self.box[0], self.box[1], anchor="nw")
         self.knob = g.canvas.create_image(0, 0, anchor="center")
@@ -490,13 +547,13 @@ class Progress:
 
     def __init__(self, g, x, y, w, value, thick, baked=True):
         self.g, self.x, self.y, self.w, self.t = g, x, y, w, thick
-        track = pill_image(g.px(w), g.px(thick), (255, 255, 255, 64))
+        track = pill_image(g.px(w), g.px(thick), (255, 255, 255, 26))
         self.track = None
         if baked:
             g.base.alpha_composite(track, (g.px(x), g.px(y)))
         else:
             self.track = g.canvas.create_image(g.px(x), g.px(y), image=g.photo(track), anchor="nw", state="hidden")
-        self.line = g.canvas.create_line(0, 0, 0, 0, fill=TEXT, width=g.px(thick), capstyle="round")
+        self.line = g.canvas.create_line(0, 0, 0, 0, fill=ACCENT, width=g.px(thick), capstyle="round")
         self.set(value)
 
     def set(self, value):
@@ -555,8 +612,8 @@ class PhotoSlot:
     def __init__(self, g, x, y, w, h, r):
         self.g, self.size = g, (g.px(w), g.px(h))
         self.mask = rounded_mask(*self.size, g.px(r))
-        dark = Image.new("RGBA", self.size, (14, 18, 52, 150))
-        dark.putalpha(Image.fromarray((np.asarray(self.mask, np.float32) * 150 / 255).astype(np.uint8)))
+        dark = Image.new("RGBA", self.size, (9, 10, 13, 0))
+        dark.putalpha(Image.fromarray((np.asarray(self.mask, np.float32) * 215 / 255).astype(np.uint8)))
         g.base.alpha_composite(dark, (g.px(x), g.px(y)))
         self.item = g.canvas.create_image(g.px(x), g.px(y), anchor="nw", state="hidden")
         self.msg = g.text(x + w / 2, y + h / 2, "", 11, color=SOFT, anchor="center", width=w - 60, justify="center")

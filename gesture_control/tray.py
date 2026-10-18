@@ -1,6 +1,7 @@
 """System tray icon and menu."""
 import pystray
-from PIL import Image, ImageDraw
+
+from .icon import disc_icon
 
 COLORS = {
     "active": (46, 160, 67),
@@ -19,14 +20,7 @@ TITLES = {
 
 
 def make_icon(color, size=64):
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.ellipse((2, 2, size - 2, size - 2), fill=color + (255,))
-    s = size / 64
-    white = (255, 255, 255, 255)
-    d.rounded_rectangle((27 * s, 12 * s, 36 * s, 40 * s), radius=4 * s, fill=white)   # index finger
-    d.rounded_rectangle((20 * s, 30 * s, 45 * s, 52 * s), radius=7 * s, fill=white)   # palm
-    return img
+    return disc_icon(color, size)
 
 
 class Tray:

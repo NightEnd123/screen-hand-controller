@@ -13,9 +13,16 @@ ROOT = Path(__file__).resolve().parent.parent
 # Read-only files that ship with the app (the hand model, the default settings).
 RES = Path(getattr(sys, "_MEIPASS", ROOT))
 # The person's own files (settings, logs, session recordings): next to the code when run from
-# source, in %APPDATA%\GestureControl for the .exe. GESTURE_CONTROL_HOME overrides both.
+# source, in %APPDATA%\GestureControl for the .exe, in the package's LocalState folder for the
+# Microsoft Store app. GESTURE_CONTROL_HOME overrides all of them.
+PACKAGE = None
+if FROZEN:
+    from .packaged import data_dir, family_name
+    PACKAGE = family_name()        # set when running as the Store app
 if os.environ.get("GESTURE_CONTROL_HOME"):
     DATA = Path(os.environ["GESTURE_CONTROL_HOME"])
+elif PACKAGE:
+    DATA = data_dir(PACKAGE)
 elif FROZEN:
     DATA = Path(os.environ.get("APPDATA", Path.home())) / "GestureControl"
 else:

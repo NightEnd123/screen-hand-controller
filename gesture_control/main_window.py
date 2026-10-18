@@ -53,10 +53,9 @@ class MainWindow:
         g = self.g = Glass(win, W, H)
 
         # header
-        g.canvas.create_line(g.px(30), g.px(30), g.px(30), g.px(92), fill="#c7d4ff", width=max(1, g.px(2)))
+        g.accent_line(30, 30, 92)
         g.text(46, 22, "Gesture Control", 26, "bold", kind="display")
         g.text(48, 68, "Your hand is the mouse.", 12, color=SOFT)
-        self.stats = g.text(W - 28, 34, "", 9, color=MUTED, anchor="ne")
 
         # camera card
         g.card(24, 112, 600, 498)
@@ -70,7 +69,8 @@ class MainWindow:
         g.card(24, 626, 600, 70)
         self.now = g.text(48, 646, "", 13, "bold", width=330)
         self.last = g.text(48, 672, "", 10, color=SOFT)
-        self.hold = g.progress(400, 657, 200, 0, thick=8, baked=False)
+        self.hold = g.progress(400, 650, 200, 0, thick=8, baked=False)
+        self.stats = g.text(600, 684, "", 9, color=MUTED, anchor="se")
 
         # status card
         g.card(640, 112, 336, 196)

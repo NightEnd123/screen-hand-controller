@@ -237,9 +237,16 @@ class App:
         return None
 
     def startup_enabled(self):
+        if self.config.PACKAGE:
+            from . import packaged
+            return packaged.startup_enabled()
         return STARTUP_FILE.exists()
 
     def toggle_startup(self):
+        if self.config.PACKAGE:   # the Store app starts with Windows through its StartupTask
+            from . import packaged
+            packaged.set_startup(not packaged.startup_enabled())
+            return
         if STARTUP_FILE.exists():
             STARTUP_FILE.unlink()
             return
@@ -566,6 +573,11 @@ def main(argv=None):
     p.add_argument("--record", action="store_true",
                    help="save hand-point numbers + actions to recordings/sessions/ (no images)")
     args = p.parse_args(argv)
+    from . import config
+    if config.PACKAGE:
+        from . import packaged
+        if packaged.launched_at_startup():   # the StartupTask can't pass --background
+            args.background = True
 
     set_dpi_aware()
     try:   # own taskbar button + icon, not grouped under Python

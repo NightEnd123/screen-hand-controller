@@ -214,8 +214,8 @@ class UI(threading.Thread):
     def _icon_for(self, win):
         try:
             from PIL import ImageTk
-            from .tray import COLORS, make_icon
-            return ImageTk.PhotoImage(make_icon(COLORS["active"], 32), master=win)
+            from .icon import tile
+            return ImageTk.PhotoImage(tile(64), master=win)
         except Exception:
             return None
 

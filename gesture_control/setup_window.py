@@ -7,7 +7,7 @@ its own buttons, so the canvas is rebuilt when the step changes.
 """
 import tkinter as tk
 
-from .glass import MUTED, SOFT, Glass, style_title_bar
+from .glass import ACCENT, MUTED, SOFT, Glass, style_title_bar
 from .guide_window import draw_sheet
 from .setup_wizard import STEPS
 
@@ -28,7 +28,7 @@ class SetupWindow:
             win.iconphoto(False, icon)
         win.protocol("WM_DELETE_WINDOW", lambda: app.wizard_cmd("cancel"))
         style_title_bar(win)
-        self.g = Glass(win, W, H)
+        self.g = Glass(win, W, H, dots=False)
         self._build("welcome")
         win.update_idletasks()
         win.geometry(f"+{max((win.winfo_screenwidth() - win.winfo_width()) // 2, 0)}+"
@@ -49,14 +49,14 @@ class SetupWindow:
         n = STEPS.index(step)
 
         # header with step dots
-        g.canvas.create_line(g.px(30), g.px(28), g.px(30), g.px(80), fill="#c7d4ff", width=max(1, g.px(2)))
+        g.accent_line(30, 28, 80)
         g.text(46, 22, "Set up Gesture Control", 22, "bold", kind="display")
         g.text(48, 60, "About two minutes. Nothing is saved until you click Finish.", 11, color=SOFT)
         for i in range(len(STEPS)):
-            x, r = W - 40 - (len(STEPS) - 1 - i) * 22, 7 if i == n else 5
-            fill = "#ffffff" if i <= n else ""
+            x, r = W - 84 - (len(STEPS) - 1 - i) * 22, 7 if i == n else 5
+            fill, outline = (ACCENT, ACCENT) if i == n else ("#ffffff", "#ffffff") if i < n else ("", "#5c6172")
             g.canvas.create_oval(g.px(x - r), g.px(48 - r), g.px(x + r), g.px(48 + r), fill=fill,
-                                 outline="#ffffff", width=max(1, g.px(1.2)))
+                                 outline=outline, width=max(1, g.px(1.2)))
 
         # left: camera, or the gesture sheet on the last step
         self.slot = None

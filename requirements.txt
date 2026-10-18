@@ -6,3 +6,7 @@ pystray==0.19.5
 Pillow==12.3.0
 psutil==7.2.2
 pytest==9.1.1
+winrt-runtime==3.2.1
+winrt-Windows.ApplicationModel==3.2.1
+winrt-Windows.ApplicationModel.Activation==3.2.1
+winrt-Windows.Foundation==3.2.1
