@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 
 log = logging.getLogger(__name__)
-TASK_ID = "GestureControlStartup"      # must match the StartupTask in packaging/msix/AppxManifest.xml
+TASK_ID = "AirCursorStartup"      # must match the StartupTask in packaging/msix/AppxManifest.xml
 _NO_PACKAGE = 15700                    # APPMODEL_ERROR_NO_PACKAGE
 
 

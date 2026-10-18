@@ -49,7 +49,7 @@ class SettingsWindow:
         self.app = app
         cfg = app.cfg
         win = self.win = tk.Toplevel(root)
-        win.title("Gesture Control settings")
+        win.title("AirCursor settings")
         win.resizable(False, False)
         win.attributes("-topmost", True)
         if icon is not None:

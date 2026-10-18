@@ -1,7 +1,7 @@
 {
-  "_comment": "Copy these from Partner Center > your app > Product management > Product identity, then rebuild.",
-  "identity_name": "REPLACE.WithPackageIdentityName",
-  "publisher": "CN=REPLACE-WITH-PUBLISHER-ID",
-  "publisher_display_name": "REPLACE with Publisher display name",
-  "display_name": "Gesture Control"
+  "_comment": "From Partner Center > AirCursor > Product management > Product identity.",
+  "identity_name": "AidanGeorge.AirCursor",
+  "publisher": "CN=607091D1-74AE-4963-9D0A-13CF720BF988",
+  "publisher_display_name": "Aidan George",
+  "display_name": "AirCursor"
 }

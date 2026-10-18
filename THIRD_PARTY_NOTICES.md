@@ -1,6 +1,6 @@
 # Third-party software
 
-Gesture Control is MIT-licensed (see `LICENSE`). The downloadable app bundles the
+AirCursor is MIT-licensed (see `LICENSE`). The downloadable app bundles the
 following, each under its own license:
 
 | Component | License | Source |

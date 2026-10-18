@@ -24,7 +24,7 @@
   </Resources>
 
   <Applications>
-    <Application Id="App" Executable="GestureControl\GestureControl.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="App" Executable="AirCursor\AirCursor.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="{{DISPLAY_NAME}}"
         Description="Control your mouse with hand gestures through your webcam."
@@ -35,8 +35,8 @@
       </uap:VisualElements>
       <Extensions>
         <!-- "Start with Windows" for the Store app (gesture_control/packaged.py turns it on/off) -->
-        <desktop:Extension Category="windows.startupTask" Executable="GestureControl\GestureControl.exe" EntryPoint="Windows.FullTrustApplication">
-          <desktop:StartupTask TaskId="GestureControlStartup" Enabled="false" DisplayName="{{DISPLAY_NAME}}" />
+        <desktop:Extension Category="windows.startupTask" Executable="AirCursor\AirCursor.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="AirCursorStartup" Enabled="false" DisplayName="{{DISPLAY_NAME}}" />
         </desktop:Extension>
       </Extensions>
     </Application>

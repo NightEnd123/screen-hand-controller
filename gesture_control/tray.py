@@ -11,11 +11,11 @@ COLORS = {
     "calibrating": (31, 111, 235),
 }
 TITLES = {
-    "active": "Gesture Control: active",
-    "paused": "Gesture Control: paused (thumbs-up to resume)",
-    "off": "Gesture Control: camera off",
-    "error": "Gesture Control: camera problem",
-    "calibrating": "Gesture Control: setting up",
+    "active": "AirCursor: active",
+    "paused": "AirCursor: paused (thumbs-up to resume)",
+    "off": "AirCursor: camera off",
+    "error": "AirCursor: camera problem",
+    "calibrating": "AirCursor: setting up",
 }
 
 
@@ -30,7 +30,7 @@ class Tray:
         self.state = "paused"
         I = pystray.MenuItem
         menu = pystray.Menu(
-            I("Open Gesture Control", lambda: app.open_window(), default=True),
+            I("Open AirCursor", lambda: app.open_window(), default=True),
             I(lambda _: "Resume" if app.is_paused() else "Pause", lambda: app.toggle_pause("tray")),
             I("Camera off", lambda: app.set_camera_off(not app.camera_off), checked=lambda _: app.camera_off),
             I("Show debug view", lambda: app.toggle_preview(), checked=lambda _: app.preview),
@@ -44,7 +44,7 @@ class Tray:
             pystray.Menu.SEPARATOR,
             I("Quit", lambda: app.quit()),
         )
-        self.icon = pystray.Icon("gesture-control", self.images["paused"], TITLES["paused"], menu)
+        self.icon = pystray.Icon("aircursor", self.images["paused"], TITLES["paused"], menu)
 
     def set_state(self, state):
         if state != self.state:
@@ -55,7 +55,7 @@ class Tray:
 
     def notify(self, msg):
         try:
-            self.icon.notify(msg, "Gesture Control")
+            self.icon.notify(msg, "AirCursor")
         except Exception:
             pass
 

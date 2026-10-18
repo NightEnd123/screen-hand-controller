@@ -193,7 +193,7 @@ class SetupWizard:
         side = (self.hand or "right").upper()
 
         if step == "welcome":
-            view.text = ("Gesture Control lets you use your mouse with one hand in front of the webcam.\n\n"
+            view.text = ("AirCursor lets you use your mouse with one hand in front of the webcam.\n\n"
                          "You should see yourself on the left. Which hand do you want to use?")
             if hand is None:
                 view.warn = "No hand in view yet. That's fine, you'll show it in the next step."

@@ -1,4 +1,4 @@
-# PyInstaller spec for GestureControl.exe (one-folder build). Run via build.ps1.
+# PyInstaller spec for AirCursor.exe (one-folder build). Run via build.ps1.
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -36,9 +36,9 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name="GestureControl",
+    name="AirCursor",
     icon=str(ROOT / "packaging" / "icon.ico"),
     console=False,
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, name="GestureControl", upx=False)
+coll = COLLECT(exe, a.binaries, a.datas, name="AirCursor", upx=False)

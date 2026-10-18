@@ -3,7 +3,7 @@ import cv2
 
 from .tracker import CONNECTIONS
 
-WINDOW = "Gesture Control - debug view"
+WINDOW = "AirCursor - debug view"
 MODE_COLORS = {
     "point": (80, 200, 80), "lpinch": (60, 60, 230), "drag": (60, 60, 230), "rpinch": (230, 120, 40),
     "scroll": (200, 200, 40), "switcher": (200, 80, 200), "palm": (40, 200, 230),

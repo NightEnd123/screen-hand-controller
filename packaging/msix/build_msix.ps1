@@ -1,5 +1,5 @@
-# Build the Microsoft Store package: dist\GestureControl-<version>.msix (unsigned; the Store signs it).
-# Needs: the app built first (build.ps1 -> dist\GestureControl) and the Windows SDK (makeappx, makepri).
+# Build the Microsoft Store package: dist\AirCursor-<version>.msix (unsigned; the Store signs it).
+# Needs: the app built first (build.ps1 -> dist\AirCursor) and the Windows SDK (makeappx, makepri).
 # GitHub's Windows build machines have the SDK; .github/workflows/store.yml runs this there.
 #   .\packaging\msix\build_msix.ps1 -Version 0.2.0
 param([Parameter(Mandatory = $true)][string]$Version)
@@ -7,8 +7,8 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $root
 
-$app = "dist\GestureControl"
-if (-not (Test-Path "$app\GestureControl.exe")) { throw "$app\GestureControl.exe missing: run build.ps1 first" }
+$app = "dist\AirCursor"
+if (-not (Test-Path "$app\AirCursor.exe")) { throw "$app\AirCursor.exe missing: run build.ps1 first" }
 
 # Store versions are a.b.c.0 (the last part must be 0)
 $v = $Version.TrimStart("v")
@@ -29,11 +29,11 @@ if (-not $sdkBin) { throw "Windows SDK not found (makeappx.exe). Install the Win
 $makeappx = "$($sdkBin.FullName)\x64\makeappx.exe"
 $makepri = "$($sdkBin.FullName)\x64\makepri.exe"
 
-# layout: the app in GestureControl\, icons in Assets\, the manifest at the top
+# layout: the app in AirCursor\, icons in Assets\, the manifest at the top
 $layout = "build\msix\layout"
 if (Test-Path "build\msix") { Remove-Item -Recurse -Force "build\msix" }
 New-Item -ItemType Directory -Force $layout | Out-Null
-Copy-Item -Recurse $app "$layout\GestureControl"
+Copy-Item -Recurse $app "$layout\AirCursor"
 Copy-Item -Recurse "$PSScriptRoot\Assets" "$layout\Assets"
 # plain names too (scale-100), for anything that doesn't go through resources.pri
 foreach ($n in "Square150x150Logo", "Square44x44Logo", "Wide310x150Logo", "StoreLogo") {
@@ -52,7 +52,7 @@ Push-Location "build\msix"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "makepri failed" }
 Pop-Location
 
-$out = "dist\GestureControl-$v.msix"
+$out = "dist\AirCursor-$v.msix"
 if (Test-Path $out) { Remove-Item $out }
 & $makeappx pack /d $layout /p $out /o
 if ($LASTEXITCODE -ne 0) { throw "makeappx failed (see messages above)" }

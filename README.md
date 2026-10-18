@@ -1,4 +1,6 @@
-# Gesture Control
+# AirCursor
+
+**Your hand is the mouse.**
 
 Use your mouse with one hand in front of your webcam, on Windows 10 and 11.
 Point to move the cursor, pinch to click, swipe to change tabs. Works with your left or right hand.
@@ -7,9 +9,9 @@ Everything runs on your computer. The camera picture is never saved or sent anyw
 
 ## Install
 
-1. Go to **[Releases](../../releases/latest)** and download `GestureControl-…-windows.zip`.
+1. Go to **[Releases](../../releases/latest)** and download `AirCursor-…-windows.zip`.
 2. Unzip it anywhere you like (for example your Documents folder). Keep the folder together.
-3. Double-click **`GestureControl.exe`**.
+3. Double-click **`AirCursor.exe`**.
    - Windows may say *"Windows protected your PC"*. The app isn't code-signed (that costs money).
      Click **More info → Run anyway**.
 4. A short **setup** opens, about 2 minutes:
@@ -18,7 +20,7 @@ Everything runs on your computer. The camera picture is never saved or sent anyw
    3. Point at two corners to choose the area your hand moves in.
    4. Do a few pinches so the clicks fit how *you* pinch.
 
-After that, the **Gesture Control window** opens (it has its own taskbar button). Closing the window
+After that, the **AirCursor window** opens (it has its own taskbar button). Closing the window
 keeps the app running in the background, with a hand icon in the system tray (check the `^` arrow by
 the clock). Click the tray icon to bring the window back.
 
@@ -60,7 +62,7 @@ Tips:
   area drawn on it. Handy for checking your hand is in view. The picture is never saved.
 - **Now / Last action**: the gesture it currently sees and the last thing it did.
 - **Pause / Resume**, shortcuts for **Gesture guide**, **Settings**, **Run setup** and **Calibrate area**,
-  switches for **Camera on** and **Start with Windows**, and **Quit Gesture Control**.
+  switches for **Camera on** and **Start with Windows**, and **Quit AirCursor**.
 
 Closing the window doesn't quit; the app keeps working from the tray. To quit, use **Quit Gesture
 Control** in the window or **Quit** in the tray menu. With *Start with Windows* on, the app starts
@@ -77,7 +79,7 @@ The tray icon has the same colours. Click it to open the window; right-click for
 pinch sensitivity, scroll and volume speed, swipe size, and on-screen feedback.
 
 Everything else is in a settings file: tray menu → **Edit settings file**, save, then **Reload settings**.
-The file lives at `%APPDATA%\GestureControl\config.toml` (in the Microsoft Store version, inside the app's own data folder; **Edit settings file** opens it either way) and every option has a comment.
+The file lives at `%APPDATA%\AirCursor\config.toml` (in the Microsoft Store version, inside the app's own data folder; **Edit settings file** opens it either way) and every option has a comment.
 You can also give **individual apps their own gestures**: for example, PowerPoint swipes change
 slides and Spotify swipes skip tracks (both set up as examples).
 
@@ -101,7 +103,7 @@ targets. Moving fast is 1:1.
 
 - Hand tracking (Google's MediaPipe) runs entirely on your computer. There's no account, no internet connection, no analytics.
 - The camera picture is shown to you during setup and in the optional debug view. It's never saved.
-- Settings and a small log file are stored in `%APPDATA%\GestureControl\` (the Store version keeps them in its own app data folder).
+- Settings and a small log file are stored in `%APPDATA%\AirCursor\` (the Store version keeps them in its own app data folder).
 - Full privacy policy: [PRIVACY.md](PRIVACY.md).
 
 ## Reporting a problem
@@ -109,14 +111,14 @@ targets. Moving fast is 1:1.
 The most useful thing you can send is a short recording of hand-point numbers (no pictures):
 
 1. Quit the app from the tray.
-2. Open a Command Prompt in the app folder and run `GestureControl.exe --record`.
+2. Open a Command Prompt in the app folder and run `AirCursor.exe --record`.
 3. Use it normally, especially whatever misbehaves, then Quit from the tray.
-4. Attach the file from `%APPDATA%\GestureControl\recordings\sessions\` to a new
+4. Attach the file from `%APPDATA%\AirCursor\recordings\sessions\` to a new
    [issue](../../issues/new/choose), and describe what you did and what went wrong.
 
 ## Uninstall
 
-Untick **Start with Windows** in the window, then **Quit Gesture Control**. Delete the app folder and `%APPDATA%\GestureControl`. (Store version: uninstall it from the Start menu; that removes its settings too.)
+Untick **Start with Windows** in the window, then **Quit AirCursor**. Delete the app folder and `%APPDATA%\AirCursor`. (Store version: uninstall it from the Start menu; that removes its settings too.)
 
 ## For developers
 
@@ -127,7 +129,7 @@ Needs Windows and Python 3.12.
 .\run.bat                                     # run with the debug view (camera, landmarks, FPS)
 .\run.bat --dry-run                           # log actions instead of moving the mouse
 .\.venv\Scripts\python.exe -m pytest          # tests
-.\build.ps1 -Version 0.1.0                    # build dist\GestureControl-0.1.0-windows.zip
+.\build.ps1 -Version 0.1.0                    # build dist\AirCursor-0.1.0-windows.zip
 ```
 
 Useful flags: `--setup` (open setup), `--background` (start in the tray, no window),

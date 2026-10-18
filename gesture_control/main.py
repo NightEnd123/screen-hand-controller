@@ -1,4 +1,4 @@
-"""Gesture Control entry point: wires camera -> tracker -> gesture engine -> output, plus tray + hotkey."""
+"""AirCursor entry point: wires camera -> tracker -> gesture engine -> output, plus tray + hotkey."""
 import argparse
 import ctypes
 import logging
@@ -19,7 +19,8 @@ if sys.stderr is None:
 
 log = logging.getLogger("gesture_control")
 
-STARTUP_FILE = Path(os.environ.get("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs/Startup/GestureControl.vbs"
+STARTUP_FILE = Path(os.environ.get("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs/Startup/AirCursor.vbs"
+LEGACY_STARTUP = STARTUP_FILE.with_name("GestureControl.vbs")   # v0.1 ("Gesture Control")
 
 
 def set_dpi_aware():
@@ -36,21 +37,21 @@ def set_dpi_aware():
 
 
 def single_instance():
-    name = "Local\\GestureControlSingleton"
+    name = "Local\\AirCursorSingleton"
     home = os.environ.get("GESTURE_CONTROL_HOME")
     if home:   # a separate settings folder (testing) is a separate instance
         import hashlib
         name += "-" + hashlib.sha1(os.path.abspath(home).lower().encode()).hexdigest()[:12]
     handle = ctypes.windll.kernel32.CreateMutexW(None, False, name)
     if ctypes.windll.kernel32.GetLastError() == 183:   # ERROR_ALREADY_EXISTS
-        ctypes.windll.user32.MessageBoxW(None, "Gesture Control is already running (see the tray).", "Gesture Control", 0x40)
+        ctypes.windll.user32.MessageBoxW(None, "AirCursor is already running (see the tray).", "AirCursor", 0x40)
         sys.exit(0)
     return handle
 
 
 def setup_logging(log_dir, console):
     log_dir.mkdir(exist_ok=True)
-    handlers = [logging.handlers.RotatingFileHandler(log_dir / "gesture-control.log", maxBytes=1_000_000,
+    handlers = [logging.handlers.RotatingFileHandler(log_dir / "aircursor.log", maxBytes=1_000_000,
                                                      backupCount=3, encoding="utf-8")]
     if console:
         handlers.append(logging.StreamHandler(sys.stdout))
@@ -99,6 +100,7 @@ class App:
             self.session = []
             self.session_saved = time.perf_counter()
         self.keys = None
+        self._migrate_startup()
         if args.paused:
             self.engine.set_paused(True)
 
@@ -235,6 +237,18 @@ class App:
             if app_name.lower() == exe and name in mapping:
                 return shortcut_action(mapping[name], name)
         return None
+
+    def _migrate_startup(self):
+        """v0.1 ("Gesture Control") started GestureControl.exe at login; point that at AirCursor instead."""
+        if self.config.PACKAGE or not LEGACY_STARTUP.exists():
+            return
+        try:
+            LEGACY_STARTUP.unlink()
+            if not STARTUP_FILE.exists():
+                self.toggle_startup()
+            log.info("moved start-with-Windows from Gesture Control to AirCursor")
+        except Exception:
+            log.exception("could not move the old start-with-Windows shortcut")
 
     def startup_enabled(self):
         if self.config.PACKAGE:
@@ -581,7 +595,7 @@ def main(argv=None):
 
     set_dpi_aware()
     try:   # own taskbar button + icon, not grouped under Python
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GestureControl.App")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("AirCursor.App")
     except Exception:
         pass
     _mutex = single_instance()  # noqa: F841  (kept alive for the process lifetime)
@@ -592,15 +606,15 @@ def main(argv=None):
     if not config.MODEL_PATH.exists():
         ctypes.windll.user32.MessageBoxW(
             None, f"Model file missing:\n{config.MODEL_PATH}\nRe-download the app (or run setup.ps1 from source).",
-            "Gesture Control", 0x10)
+            "AirCursor", 0x10)
         return 1
     try:
         App(args).run()
     except Exception as e:
         log.exception("could not start")
         ctypes.windll.user32.MessageBoxW(
-            None, f"Gesture Control could not start:\n{e}\n\nDetails are in {config.LOG_DIR / 'gesture-control.log'}",
-            "Gesture Control", 0x10)
+            None, f"AirCursor could not start:\n{e}\n\nDetails are in {config.LOG_DIR / 'aircursor.log'}",
+            "AirCursor", 0x10)
         return 1
     return 0
 

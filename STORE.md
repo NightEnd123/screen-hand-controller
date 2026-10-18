@@ -8,10 +8,10 @@ review, so Store users never see the "Windows protected your PC" warning.
 1. **Create a developer account** (free for individuals) at <https://storedeveloper.microsoft.com>.
    Sign in with your Microsoft account and finish the identity check.
 2. In **Partner Center** → **Apps and games** → **New product** → **MSIX or PWA app**,
-   **reserve the name**. "Gesture Control" may already be taken; if so, pick another
-   (for example "Screen Hand Controller") and use it everywhere below.
+   **reserve the name**. "AirCursor" is reserved (October 2026).
 3. Open the app → **Product management** → **Product identity**. Copy these three values into
-   `packaging/msix/store.json`, along with the reserved name as `display_name`:
+   `packaging/msix/store.json`, along with the reserved name as `display_name`. This is done
+   for AirCursor:
 
    | Partner Center | store.json |
    |---|---|
@@ -25,7 +25,7 @@ review, so Store users never see the "Windows protected your PC" warning.
 
 GitHub builds it for you: **Actions** tab → **store package** → **Run workflow**. Version tags
 (`v0.2.0` …) also build it. When the run finishes, download **store-package** under
-**Artifacts** and unzip it. Inside is `GestureControl-<version>.msix`.
+**Artifacts** and unzip it. Inside is `AirCursor-<version>.msix`.
 
 To build on your own PC instead, you need the Windows SDK. Then run `build.ps1`, followed by
 `packaging\msix\build_msix.ps1 -Version 0.2.0`.
@@ -53,7 +53,7 @@ location, purchases or violence, so it should come out as suitable for everyone.
 **Submission options → Restricted capabilities**: the package uses `runFullTrust`. Paste
 this into the box:
 
-> Gesture Control is a desktop accessibility and productivity tool that lets people control
+> AirCursor is a desktop accessibility and productivity tool that lets people control
 > their computer's mouse and a few keyboard shortcuts with hand gestures seen by the webcam.
 > It needs full trust to send mouse and keyboard input to whichever app is in front (Win32
 > SendInput), to register its pause hotkey (Ctrl+Alt+G) with a low-level keyboard hook, and
@@ -65,14 +65,14 @@ Then **Submit to the Store**. Review usually takes a few business days for a fir
 
 ## Listing text
 
-**Product name**: Gesture Control (or your reserved name)
+**Product name**: AirCursor (or your reserved name)
 
 **Short description** (shown in search):
 > Control your mouse with hand gestures through your webcam. Point, pinch to click, swipe
 > between tabs. Works with either hand, on your device.
 
 **Description**:
-> Gesture Control turns your webcam into a touch-free mouse.
+> AirCursor turns your webcam into a touch-free mouse.
 >
 > Point with your index finger to move the cursor. Pinch your thumb and finger to click,
 > double-click or drag. Pinch with your middle finger to right-click. Move two fingers
@@ -90,7 +90,7 @@ Then **Submit to the Store**. Review usually takes a few business days for a fir
 > • Private: hand tracking runs entirely on your computer. No camera images are saved or
 >   sent anywhere, and there's no account and no internet connection
 >
-> Gesture Control is free and open source (MIT).
+> AirCursor is free and open source (MIT).
 
 **What's new in this version**: Dark neon look, new main window with a live camera view,
 first-run setup that adapts to your hand.

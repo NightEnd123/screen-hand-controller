@@ -44,7 +44,7 @@ class MainWindow:
         self.told_hidden = False
         self.guide = None
         win = self.win = tk.Toplevel(root)
-        win.title("Gesture Control")
+        win.title("AirCursor")
         win.resizable(False, False)
         if icon is not None:
             win.iconphoto(False, icon)
@@ -54,7 +54,7 @@ class MainWindow:
 
         # header
         g.accent_line(30, 30, 92)
-        g.text(46, 22, "Gesture Control", 26, "bold", kind="display")
+        g.text(46, 22, "AirCursor", 26, "bold", kind="display")
         g.text(48, 68, "Your hand is the mouse.", 12, color=SOFT)
 
         # camera card
@@ -100,7 +100,7 @@ class MainWindow:
         g.text(686, 600, "Start with Windows", 11, anchor="w")
         self.startup = g.toggle(906, 587, app.startup_enabled(), self._toggle_startup)
 
-        g.button(640, 642, 336, 54, "Quit Gesture Control", "power", app.quit)
+        g.button(640, 642, 336, 54, "Quit AirCursor", "power", app.quit)
         g.finish()
         self._placeholder()
 
@@ -124,7 +124,7 @@ class MainWindow:
         self.win.withdraw()
         if not self.told_hidden:
             self.told_hidden = True
-            self.app.notify("Gesture Control is still running. Click the tray icon to open it, or Quit from there.")
+            self.app.notify("AirCursor is still running. Click the tray icon to open it, or Quit from there.")
 
     def close(self):
         if self.alive():

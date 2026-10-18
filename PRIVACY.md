@@ -1,13 +1,13 @@
-# Privacy policy: Gesture Control
+# Privacy policy: AirCursor
 
 *Last updated: October 18, 2026*
 
-Gesture Control lets you control your Windows mouse with hand gestures through your webcam.
+AirCursor lets you control your Windows mouse with hand gestures through your webcam.
 This policy covers the app from GitHub and from the Microsoft Store.
 
 ## The short version
 
-Gesture Control doesn't collect, store, send or share any personal information. Everything
+AirCursor doesn't collect, store, send or share any personal information. Everything
 happens on your own computer.
 
 ## Camera
@@ -30,7 +30,7 @@ happens on your own computer.
   with a bug report if you choose to.
 
 These files stay on your computer, in the app's own data folder. Uninstalling the Store app
-removes them. For the GitHub version, delete `%APPDATA%\GestureControl`.
+removes them. For the GitHub version, delete `%APPDATA%\AirCursor`.
 
 ## What we don't do
 

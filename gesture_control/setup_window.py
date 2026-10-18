@@ -21,7 +21,7 @@ class SetupWindow:
         self.app = app
         self.step = None
         win = self.win = tk.Toplevel(root)
-        win.title("Gesture Control setup")
+        win.title("AirCursor setup")
         win.resizable(False, False)
         win.attributes("-topmost", True)
         if icon is not None:
@@ -50,7 +50,7 @@ class SetupWindow:
 
         # header with step dots
         g.accent_line(30, 28, 80)
-        g.text(46, 22, "Set up Gesture Control", 22, "bold", kind="display")
+        g.text(46, 22, "Set up AirCursor", 22, "bold", kind="display")
         g.text(48, 60, "About two minutes. Nothing is saved until you click Finish.", 11, color=SOFT)
         for i in range(len(STEPS)):
             x, r = W - 84 - (len(STEPS) - 1 - i) * 22, 7 if i == n else 5

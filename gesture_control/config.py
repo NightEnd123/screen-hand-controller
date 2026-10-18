@@ -7,13 +7,13 @@ import sys
 import tomllib
 from pathlib import Path
 
-# FROZEN = running as the packaged GestureControl.exe (PyInstaller).
+# FROZEN = running as the packaged AirCursor.exe (PyInstaller).
 FROZEN = getattr(sys, "frozen", False)
 ROOT = Path(__file__).resolve().parent.parent
 # Read-only files that ship with the app (the hand model, the default settings).
 RES = Path(getattr(sys, "_MEIPASS", ROOT))
 # The person's own files (settings, logs, session recordings): next to the code when run from
-# source, in %APPDATA%\GestureControl for the .exe, in the package's LocalState folder for the
+# source, in %APPDATA%\AirCursor for the .exe, in the package's LocalState folder for the
 # Microsoft Store app. GESTURE_CONTROL_HOME overrides all of them.
 PACKAGE = None
 if FROZEN:
@@ -24,9 +24,11 @@ if os.environ.get("GESTURE_CONTROL_HOME"):
 elif PACKAGE:
     DATA = data_dir(PACKAGE)
 elif FROZEN:
-    DATA = Path(os.environ.get("APPDATA", Path.home())) / "GestureControl"
+    DATA = Path(os.environ.get("APPDATA", Path.home())) / "AirCursor"
 else:
     DATA = ROOT
+# where v0.1 (still called "Gesture Control") kept its files; copied over once, see ensure_config()
+LEGACY_DATA = Path(os.environ.get("APPDATA", Path.home())) / "GestureControl"
 CONFIG_PATH = DATA / "config.toml"
 DEFAULT_CONFIG = RES / "gesture_control" / "default_config.toml"
 MODEL_PATH = RES / "models" / "hand_landmarker.task"
@@ -82,7 +84,11 @@ def _merge(base, over):
 
 
 def ensure_config():
-    """First run: start the person's config.toml from the commented default one."""
+    """First run: bring over settings from v0.1 ("Gesture Control") if there are any, otherwise
+    start the person's config.toml from the commented default one."""
+    if (FROZEN and not PACKAGE and not os.environ.get("GESTURE_CONTROL_HOME")
+            and not DATA.exists() and (LEGACY_DATA / "config.toml").exists()):
+        shutil.copytree(LEGACY_DATA, DATA, ignore=shutil.ignore_patterns("logs"))
     if not CONFIG_PATH.exists() and DEFAULT_CONFIG.exists():
         DATA.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(DEFAULT_CONFIG, CONFIG_PATH)
