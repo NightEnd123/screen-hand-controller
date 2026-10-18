@@ -110,8 +110,12 @@ first-run setup that adapts to your hand.
 > Starts with Windows (optional)
 > All processing on your device
 
-**Search terms** (up to 7): `gesture`, `hand tracking`, `webcam mouse`, `touchless`,
-`accessibility`, `hands-free`, `air mouse`
+**Search terms** (up to 7): `webcam mouse`, `touchless`, `accessibility`, `hands-free`,
+`hand gestures`, `touch-free mouse`, `mouse alternative`
+
+Keywords must not be other apps' names (Store policy 10.1.3). "air mouse" was rejected for that, and
+"camera mouse" is another app's name too. In Partner Center's keyword box, wait a second
+before pressing Enter or the keyword is dropped.
 
 ## Updates
 
