@@ -77,7 +77,7 @@ The tray icon has the same colours. Click it to open the window; right-click for
 pinch sensitivity, scroll and volume speed, swipe size, and on-screen feedback.
 
 Everything else is in a settings file: tray menu → **Edit settings file**, save, then **Reload settings**.
-The file lives at `%APPDATA%\GestureControl\config.toml` and every option has a comment.
+The file lives at `%APPDATA%\GestureControl\config.toml` (in the Microsoft Store version, inside the app's own data folder; **Edit settings file** opens it either way) and every option has a comment.
 You can also give **individual apps their own gestures**: for example, PowerPoint swipes change
 slides and Spotify swipes skip tracks (both set up as examples).
 
@@ -101,7 +101,8 @@ targets. Moving fast is 1:1.
 
 - Hand tracking (Google's MediaPipe) runs entirely on your computer. There's no account, no internet connection, no analytics.
 - The camera picture is shown to you during setup and in the optional debug view. It's never saved.
-- Settings and a small log file are stored in `%APPDATA%\GestureControl\`.
+- Settings and a small log file are stored in `%APPDATA%\GestureControl\` (the Store version keeps them in its own app data folder).
+- Full privacy policy: [PRIVACY.md](PRIVACY.md).
 
 ## Reporting a problem
 
@@ -115,7 +116,7 @@ The most useful thing you can send is a short recording of hand-point numbers (n
 
 ## Uninstall
 
-Untick **Start with Windows** in the window, then **Quit Gesture Control**. Delete the app folder and `%APPDATA%\GestureControl`.
+Untick **Start with Windows** in the window, then **Quit Gesture Control**. Delete the app folder and `%APPDATA%\GestureControl`. (Store version: uninstall it from the Start menu; that removes its settings too.)
 
 ## For developers
 
@@ -145,7 +146,7 @@ hand movements in `recordings/`, both as recorded and mirrored as a left hand.
 Recordings come from `tools/record_landmarks.py` (hand-point numbers only, no images).
 **More recordings from different hands are very welcome** as pull requests.
 
-Releases are built by GitHub Actions when a `v*` tag is pushed (`.github/workflows/release.yml`).
+Releases are built by GitHub Actions when a `v*` tag is pushed (`.github/workflows/release.yml`). The same tag also builds the Microsoft Store package (`store.yml`); see [STORE.md](STORE.md) for publishing to the Store.
 
 ## License
 
