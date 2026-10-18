@@ -20,9 +20,10 @@ Everything runs on your computer. The camera picture is never saved or sent anyw
    3. Point at two corners to choose the area your hand moves in.
    4. Do a few pinches so the clicks fit how *you* pinch.
 
-After that, the **AirCursor window** opens (it has its own taskbar button). Closing the window
-keeps the app running in the background, with a hand icon in the system tray (check the `^` arrow by
-the clock). Click the tray icon to bring the window back.
+After that, the **AirCursor window** opens (it has its own taskbar button). Closing it with the X
+quits AirCursor. To keep it running in the background instead, click the tray button (the dash at the
+top right): it hides to a hand icon in the system tray (check the `^` arrow by the clock), and
+clicking that icon brings the window back.
 
 No Python or anything else is needed. To remove the app, see [Uninstall](#uninstall).
 
@@ -64,9 +65,9 @@ Tips:
 - **Pause / Resume**, shortcuts for **Gesture guide**, **Settings**, **Run setup** and **Calibrate area**,
   switches for **Camera on** and **Start with Windows**, and **Quit AirCursor**.
 
-Closing the window doesn't quit; the app keeps working from the tray. To quit, use **Quit Gesture
-Control** in the window or **Quit** in the tray menu. With *Start with Windows* on, the app starts
-quietly in the tray when you log in.
+Closing the window (X) quits the app, as does **Quit AirCursor** in the sidebar or **Quit** in the
+tray menu. The tray button at the top right hides the window and keeps gestures working in the
+background. With *Start with Windows* on, the app starts quietly in the tray when you log in.
 
 The tray icon has the same colours. Click it to open the window; right-click for a menu.
 

@@ -3,7 +3,8 @@ and the camera view. Lives on the UI thread; the engine thread only hands over t
 and picture through UI.main_feed(). Buttons call App methods, which queue work for the engine
 thread.
 
-Closing the window hides it; the app keeps running in the tray (tray icon -> Open brings it back).
+Closing the window (X) quits the app. The tray button in the top bar hides it to the tray instead
+(tray icon -> Open brings it back).
 """
 import time
 import tkinter as tk
@@ -53,7 +54,7 @@ class MainWindow:
         win.resizable(False, False)
         if icon is not None:
             win.iconphoto(False, icon)
-        win.protocol("WM_DELETE_WINDOW", self.hide)
+        win.protocol("WM_DELETE_WINDOW", app.quit)
         style_title_bar(win)
         g = self.g = Glass(win, W, H, sidebar=SIDE)
 
