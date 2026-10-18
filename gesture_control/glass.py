@@ -1,9 +1,9 @@
-"""Dark neon look for the app's windows (one Tk Canvas per window + Pillow).
+"""Dashboard look for the app's windows (one Tk Canvas per window + Pillow).
 
-The background of a window (charcoal, soft dark spheres, glowing blue/violet lines and rings, and
-every card and pill) is rendered once with Pillow into one image: each card blurs what is behind
-it, darkens it, rounds the corners and gets a faint border and a soft shadow. Live things are canvas items on
-top: text, icons, the camera picture, hover highlights, toggles, sliders and progress bars.
+Flat dark slate with a blue-grey sidebar, rounded cards, one white "highlight" card, and mint /
+pink / lavender accents. The static parts of a window (background, sidebar, cards, pills) are
+rendered once with Pillow into one image; live things are canvas items on top: text, icons, the
+camera picture, charts, hover highlights, toggles, sliders and progress bars.
 
 Coordinates given to Glass are logical (96-dpi) pixels; Glass scales them for the screen.
 Only the Tk thread may use this module.
@@ -15,14 +15,21 @@ import tkinter.font as tkfont
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageTk
 
-TEXT = "#ffffff"
-SOFT = "#b9bdcc"
-MUTED = "#7f8498"
-ACCENT = "#7c5cff"         # violet: switches, progress, highlights
-BLUE = (37, 99, 255)
-VIOLET = (112, 80, 255)
-BG_TOP, BG_BOTTOM = (24, 25, 29), (15, 16, 19)
-TITLE_BAR = (21, 22, 26)   # Windows 11 title bar colour, matches the top of the background
+BG = (43, 48, 54)            # window
+SIDEBAR = (36, 50, 63)       # left navigation strip
+CARD = (36, 40, 46)          # cards (a touch darker than the window)
+CARD_HI = (52, 57, 64)       # buttons and raised bits
+WHITE_CARD = (248, 249, 251)
+TEXT = "#eef1f5"
+SOFT = "#b3b9c3"
+MUTED = "#7f868f"
+DARK = "#1f2429"             # text on white
+MINT = "#7cf0c9"
+PINK = "#e8336d"
+LAVENDER = "#c7c3f6"
+GREY = "#5e646c"
+ACCENT = MINT
+TITLE_BAR = BG               # Windows 11 title bar colour
 
 ICONS = {   # Segoe Fluent Icons / Segoe MDL2 Assets code points
     "play": "", "pause": "", "camera": "", "settings": "",
@@ -30,6 +37,8 @@ ICONS = {   # Segoe Fluent Icons / Segoe MDL2 Assets code points
     "check": "", "warning": "", "windows": "", "next": "",
     "close": "", "save": "", "undo": "", "edit": "", "eye": "",
     "hand": "", "sync": "", "mouse": "", "left": "", "right": "",
+    "home": "", "dashboard": "", "search": "", "down": "", "tray": "",
+    "chart": "", "globe": "",
 }
 
 _user32 = ctypes.windll.user32
@@ -75,92 +84,18 @@ def style_title_bar(win):
 
 # ---- Pillow rendering -------------------------------------------------------------------------
 
-def background(w, h, dots=True):
-    """Charcoal with soft dark spheres, glowing blue/violet lines and rings, a dotted blue row and a
-    violet bar (laid out relative to the window size), as RGBA."""
-    ys = np.linspace(0, 1, h, dtype=np.float32)[:, None, None]
-    grad = np.array(BG_TOP, np.float32) * (1 - ys) + np.array(BG_BOTTOM, np.float32) * ys
-    img = Image.fromarray(np.repeat(grad, w, axis=1).astype(np.uint8)).convert("RGBA")
-    big = max(w, h)
-    s = big / 1000
-    for cx, cy, r in ((0.20, -0.03, 0.13), (0.15, 0.46, 0.065), (0.79, 1.03, 0.21), (1.01, 0.68, 0.075)):
-        img = _dark_sphere(img, cx * w, cy * h, r * big)
-    P = lambda x, y: (x * w, y * h)   # noqa: E731
-    shapes = [("line", (*P(0.33, 0.19), *P(0.47, -0.01)), BLUE),
-              ("line", (*P(0.47, 0.09), *P(0.545, -0.01)), BLUE),
-              ("line", (*P(0.05, 0.61), *P(0.26, 0.29)), VIOLET),
-              ("line", (*P(-0.01, 0.81), *P(0.07, 0.70)), BLUE),
-              ("line", (*P(0.83, 0.69), *P(1.01, 0.42)), BLUE),
-              ("ring", (*P(0.06, 0.29), 0.028 * big), VIOLET),
-              ("ring", (*P(0.935, 0.52), 0.115 * big), VIOLET),
-              ("ring", (*P(0.935, 0.90), 0.03 * big), VIOLET)]
-    img = neon_shapes(img, shapes, s, width=3.4)
-    d = ImageDraw.Draw(img)
-    q = 0.0115 * big                                                    # dotted blue row
-    x = 0.66 * w if dots else w
-    while x < 0.945 * w:
-        d.rectangle((x, 0.065 * h, x + q, 0.065 * h + q), fill=(10, 82, 255, 255))
-        x += 0.031 * w
-    d.rectangle((0.955 * w, 0, w, 0.28 * h), fill=(68, 44, 200, 255))  # violet bar
+def hex_rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def background(w, h, dots=True, sidebar=0):
+    """Flat slate, with a blue-grey sidebar strip `sidebar` px wide on the left. (dots is unused,
+    kept so older callers still work.)"""
+    img = Image.new("RGBA", (w, h), BG + (255,))
+    if sidebar:
+        ImageDraw.Draw(img).rectangle((0, 0, sidebar - 1, h), fill=SIDEBAR + (255,))
     return img
-
-
-def _dark_sphere(img, cx, cy, r):
-    """A soft charcoal ball: a little lighter than the background, with a shadow below-right."""
-    sh = Image.new("L", img.size, 0)
-    ImageDraw.Draw(sh).ellipse((cx - r + 0.05 * r, cy - r + 0.09 * r, cx + r + 0.05 * r, cy + r + 0.09 * r), fill=150)
-    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    layer.putalpha(sh.filter(ImageFilter.GaussianBlur(max(r * 0.12, 2))))
-    img = Image.alpha_composite(img, layer)
-    x0, y0 = int(cx - r - 3), int(cy - r - 3)
-    size = int(2 * r + 6)
-    ys, xs = np.mgrid[0:size, 0:size].astype(np.float32)
-    d = np.hypot(xs + x0 - cx, ys + y0 - cy) / r
-    hl = np.hypot(xs + x0 - (cx - 0.4 * r), ys + y0 - (cy - 0.4 * r)) / r
-    a = np.clip((1 - d) * r / 1.2, 0, 1)
-    shade = np.clip(1.25 - hl, 0, 1)[..., None]
-    rgb = np.array((27, 28, 32), np.float32) + shade * 7
-    patch = np.dstack([rgb.repeat(1, 2) if False else np.broadcast_to(rgb, (size, size, 3)), a * 255]).astype(np.uint8)
-    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    layer.paste(Image.fromarray(patch, "RGBA"), (x0, y0))
-    return Image.alpha_composite(img, layer)
-
-
-def neon_shapes(img, shapes, s, width=2.2):
-    """Draw glowing lines ("line", (x0, y0, x1, y1), rgb) and rings ("ring", (cx, cy, r), rgb)."""
-    ss = 2
-    core = Image.new("RGBA", (img.width * ss, img.height * ss), (0, 0, 0, 0))
-    d = ImageDraw.Draw(core)
-    lw = max(int(width * s * ss), 2)
-    for kind, g, rgb in shapes:
-        if kind == "line":
-            d.line([v * ss for v in g], fill=rgb + (255,), width=lw)
-        else:
-            cx, cy, r = (v * ss for v in g)
-            d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=rgb + (255,), width=lw)
-    core = core.resize(img.size, Image.LANCZOS)
-    glow = core.filter(ImageFilter.GaussianBlur(max(7 * s, 2)))
-    a = np.asarray(glow.getchannel("A"), np.float32)
-    glow.putalpha(Image.fromarray(np.clip(a * 3.4, 0, 255).astype(np.uint8)))
-    return Image.alpha_composite(Image.alpha_composite(img, glow), core)
-
-
-def neon_pill(w, h, r, m):
-    """Violet-to-blue rounded pill with a soft glow; returned with margin m on every side."""
-    xs = np.linspace(0, 1, w, dtype=np.float32)[None, :, None]
-    col = np.array(VIOLET, np.float32) * (1 - xs) + np.array(BLUE, np.float32) * xs
-    body = Image.fromarray(np.repeat(col, h, axis=0).astype(np.uint8)).convert("RGBA")
-    mask = rounded_mask(w, h, r)
-    body.putalpha(mask)
-    out = Image.new("RGBA", (w + 2 * m, h + 2 * m), VIOLET + (0,))
-    halo = Image.new("L", out.size, 0)
-    halo.paste(mask, (m, m))
-    out.putalpha(Image.fromarray((np.asarray(halo.filter(ImageFilter.GaussianBlur(m * 0.45)), np.float32) * 0.55).astype(np.uint8)))
-    out.alpha_composite(body, (m, m))
-    hi = Image.new("RGBA", (w, h), (255, 255, 255, 0))       # soft top sheen
-    hi.putalpha(Image.fromarray((np.asarray(_vgrad(w, h, 0.18, 0.0), np.float32) * np.asarray(mask, np.float32) / 255).astype(np.uint8)))
-    out.alpha_composite(hi, (m, m))
-    return out
 
 
 def rounded_mask(w, h, r, ss=4):
@@ -169,46 +104,22 @@ def rounded_mask(w, h, r, ss=4):
     return m.resize((w, h), Image.LANCZOS)
 
 
-def _vgrad(w, h, top, bottom):
-    col = np.linspace(top, bottom, h, dtype=np.float32)[:, None]
-    return Image.fromarray((np.repeat(col, w, 1) * 255).astype(np.uint8), "L")
-
-
-def glass_card(base, box, r, s, lift=0.04, shadow=0.45, border=0.11, blur=18):
-    """Composite one dark glass rounded rectangle onto `base` (RGBA) and return the result."""
+def flat_card(base, box, r, s, fill=CARD, shadow=0.0):
+    """Composite one flat rounded rectangle onto `base` (RGBA), with an optional soft shadow."""
     x0, y0, x1, y1 = (int(round(v)) for v in box)
     w, h = x1 - x0, y1 - y0
     if w <= 2 or h <= 2:
         return base
-    # soft shadow underneath
-    m = int(30 * s)
-    sh = Image.new("L", (w + 2 * m, h + 2 * m), 0)
-    ImageDraw.Draw(sh).rounded_rectangle((m, m + int(10 * s), m + w, m + h + int(10 * s)), r, fill=int(255 * shadow))
-    sh = sh.filter(ImageFilter.GaussianBlur(14 * s))
-    layer = Image.new("RGBA", sh.size, (0, 0, 0, 0))
-    layer.putalpha(sh)
     base = base.copy()
-    base.alpha_composite(layer, (x0 - m, y0 - m))
-    # frosted: blur what's behind, darken it, and light it a touch from the top
-    pad = int(blur * 2 * s)
-    region = base.crop((x0 - pad, y0 - pad, x1 + pad, y1 + pad)).filter(ImageFilter.GaussianBlur(blur * s))
-    region = region.crop((pad, pad, pad + w, pad + h))
-    dark = Image.new("RGBA", (w, h), (28, 29, 35, 180))
-    region = Image.alpha_composite(region, dark)
-    white = Image.new("RGBA", (w, h), (255, 255, 255, 0))
-    white.putalpha(_vgrad(w, h, lift + 0.03, max(lift - 0.03, 0.0)))
-    region = Image.alpha_composite(region, white)
-    mask = rounded_mask(w, h, r)
-    base.paste(region, (x0, y0), mask)
-    # faint border, brighter at the top
-    bw = max(1, round(1.0 * s))
-    inner = Image.new("L", (w, h), 0)
-    inner.paste(rounded_mask(w - 2 * bw, h - 2 * bw, max(r - bw, 1)), (bw, bw))
-    ring = np.clip(np.asarray(mask, np.int16) - np.asarray(inner, np.int16), 0, 255).astype(np.float32)
-    ring = Image.fromarray((ring * np.asarray(_vgrad(w, h, border, border * 0.35), np.float32) / 255).astype(np.uint8))
-    edge = Image.new("RGBA", (w, h), (255, 255, 255, 0))
-    edge.putalpha(ring)
-    base.alpha_composite(edge, (x0, y0))
+    if shadow:
+        m = int(24 * s)
+        sh = Image.new("L", (w + 2 * m, h + 2 * m), 0)
+        ImageDraw.Draw(sh).rounded_rectangle((m, m + int(6 * s), m + w, m + h + int(6 * s)), r, fill=int(255 * shadow))
+        layer = Image.new("RGBA", sh.size, (0, 0, 0, 0))
+        layer.putalpha(sh.filter(ImageFilter.GaussianBlur(12 * s)))
+        base.alpha_composite(layer, (x0 - m, y0 - m))
+    body = Image.new("RGBA", (w, h), tuple(fill) + (255,))
+    base.paste(body, (x0, y0), rounded_mask(w, h, r))
     return base
 
 
@@ -219,23 +130,32 @@ def pill_image(w, h, rgba):
     return img
 
 
+def round_rect_image(w, h, r, rgba):
+    img = Image.new("RGBA", (w, h), rgba[:3] + (0,))
+    img.putalpha(Image.fromarray((np.asarray(rounded_mask(w, h, r), np.float32) * rgba[3] / 255).astype(np.uint8)))
+    return img
+
+
+def disc(d, color, ring=None, ring_w=0):
+    """An anti-aliased filled circle of diameter d (optionally with a ring outline)."""
+    ss = 4
+    img = Image.new("RGBA", (d * ss, d * ss), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(img)
+    dr.ellipse((0, 0, d * ss - 1, d * ss - 1), fill=tuple(color) + (255,))
+    if ring:
+        dr.ellipse((0, 0, d * ss - 1, d * ss - 1), outline=tuple(ring) + (255,), width=max(int(ring_w * ss), 1))
+    return img.resize((d, d), Image.LANCZOS)
+
+
 def glow_dot(d, color):
-    """A coloured disc with a soft halo, d = disc diameter in px."""
+    """A coloured disc with a soft halo (status lights), d = disc diameter in px."""
     size = d * 3
-    img = Image.new("RGBA", (size, size), color + (0,))
+    img = Image.new("RGBA", (size, size), tuple(color) + (0,))
     halo = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(halo).ellipse((d * 0.7, d * 0.7, size - d * 0.7, size - d * 0.7), fill=150)
-    img.putalpha(halo.filter(ImageFilter.GaussianBlur(d * 0.35)))
-    disc = Image.new("RGBA", (size, size), color + (0,))
-    a = Image.new("L", (size * 4, size * 4), 0)
-    ImageDraw.Draw(a).ellipse((d * 4, d * 4, size * 4 - d * 4, size * 4 - d * 4), fill=255)
-    disc.putalpha(a.resize((size, size), Image.LANCZOS))
-    return Image.alpha_composite(img, disc)
-
-
-def hex_rgb(h):
-    h = h.lstrip("#")
-    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    ImageDraw.Draw(halo).ellipse((d * 0.8, d * 0.8, size - d * 0.8, size - d * 0.8), fill=110)
+    img.putalpha(halo.filter(ImageFilter.GaussianBlur(d * 0.3)))
+    img.alpha_composite(disc(d, color), (d, d))
+    return img
 
 
 # ---- the canvas ---------------------------------------------------------------------------------
@@ -243,14 +163,14 @@ def hex_rgb(h):
 class Glass:
     """One window's canvas. Build: add cards/widgets, then finish(). Widgets stay live after."""
 
-    def __init__(self, parent, w, h, dots=True):
-        """dots=False leaves out the dotted row at the top right (where a window has its own)."""
+    def __init__(self, parent, w, h, dots=True, sidebar=0):
+        """sidebar = width of the blue-grey navigation strip on the left (0 = none)."""
         self.s = screen_scale()
         self.w, self.h = w, h
         self.canvas = tk.Canvas(parent, width=self.px(w), height=self.px(h), highlightthickness=0, bd=0,
-                                bg="#16171a")
+                                bg="#2b3036")
         self.canvas.pack()
-        self.bg0 = background(self.px(w), self.px(h), dots)
+        self.bg0 = background(self.px(w), self.px(h), dots, self.px(sidebar))
         self.base = self.bg0.copy()
         self.widgets = []
         self.images = []          # keep PhotoImage references alive
@@ -280,24 +200,41 @@ class Glass:
         return p
 
     # baked layers
-    def card(self, x, y, w, h, r=22, tint=0.16, shadow=0.20):
-        """A dark glass card. tint = how much lighter than the background (0.16 normal)."""
-        self.base = glass_card(self.base, (self.px(x), self.px(y), self.px(x + w), self.px(y + h)),
-                               self.px(r), self.s, lift=tint * 0.25, shadow=min(0.25 + shadow * 1.5, 0.6))
+    def card(self, x, y, w, h, r=16, tint=0.16, shadow=0.20, fill=None):
+        """A flat card. tint >= 0.2 gives the raised (lighter) shade used for buttons."""
+        fill = fill or (CARD_HI if tint >= 0.2 else CARD)
+        self.base = flat_card(self.base, (self.px(x), self.px(y), self.px(x + w), self.px(y + h)),
+                              self.px(r), self.s, fill=fill, shadow=0.0)
+        return (x, y, w, h)
+
+    def white_card(self, x, y, w, h, r=16):
+        """The bright highlight card (dark text goes on it)."""
+        self.base = flat_card(self.base, (self.px(x), self.px(y), self.px(x + w), self.px(y + h)),
+                              self.px(r), self.s, fill=WHITE_CARD, shadow=0.35)
         return (x, y, w, h)
 
     def neon_card(self, x, y, w, h, r):
-        """The bright violet-to-blue pill used for the main action."""
-        m = self.px(18)
-        self.base.alpha_composite(neon_pill(self.px(w), self.px(h), self.px(r), m), (self.px(x) - m, self.px(y) - m))
+        """The white pill used for the main action."""
+        self.base = flat_card(self.base, (self.px(x), self.px(y), self.px(x + w), self.px(y + h)),
+                              self.px(r), self.s, fill=WHITE_CARD)
 
-    def accent_line(self, x, y0, y1):
-        """A glowing violet vertical line (beside headings)."""
-        self.base = neon_shapes(self.base, [("line", (self.px(x), self.px(y0), self.px(x), self.px(y1)), VIOLET)], self.s)
+    def accent_line(self, x, y0, y1, color=MINT):
+        """A short rounded accent bar (beside headings)."""
+        w = max(self.px(3), 2)
+        bar = round_rect_image(w, self.px(y1 - y0), w // 2, hex_rgb(color) + (255,))
+        self.base.alpha_composite(bar, (self.px(x) - w // 2, self.px(y0)))
 
-    def ring(self, cx, cy, r, color=VIOLET, width=1.6):
-        self.base = neon_shapes(self.base, [("ring", (self.px(cx), self.px(cy), self.px(r)), color)], self.s,
-                                width=width)
+    def ring(self, cx, cy, r, color=LAVENDER, width=1.4):
+        ss = 4
+        d = self.px(2 * r)
+        img = Image.new("RGBA", (d * ss, d * ss), (0, 0, 0, 0))
+        ImageDraw.Draw(img).ellipse((0, 0, d * ss - 1, d * ss - 1), outline=hex_rgb(color) + (255,),
+                                    width=max(int(width * self.s * ss), 1))
+        self.base.alpha_composite(img.resize((d, d), Image.LANCZOS), (self.px(cx) - d // 2, self.px(cy) - d // 2))
+
+    def bake(self, x, y, img):
+        """Paste a Pillow image into the background at logical (x, y)."""
+        self.base.alpha_composite(img, (self.px(x), self.px(y)))
 
     def finish(self):
         p = self.photo(self.base)
@@ -332,6 +269,12 @@ class Glass:
     def button(self, x, y, w, h, text="", icon=None, command=None, strong=False, size=11, r=None):
         return self.add(Button(self, x, y, w, h, text, icon, command, strong, size, r))
 
+    def nav(self, x, y, w, text, icon, command, selected=False, badge=None):
+        return self.add(NavItem(self, x, y, w, text, icon, command, selected, badge))
+
+    def icon_button(self, x, y, icon, command, size=14):
+        return self.add(IconButton(self, x, y, icon, command, size))
+
     def tile(self, x, y, w, h, text, icon, command):
         return self.add(Tile(self, x, y, w, h, text, icon, command))
 
@@ -345,8 +288,13 @@ class Glass:
     def slider(self, x, y, w, lo, hi, step, value, on_change=None):
         return self.add(Slider(self, x, y, w, lo, hi, step, value, on_change))
 
-    def photo_slot(self, x, y, w, h, r=16):
-        return PhotoSlot(self, x, y, w, h, r)
+    def photo_slot(self, x, y, w, h, r=12, backing=True):
+        """backing=False: no dark panel behind it (the area is shared with something else)."""
+        return PhotoSlot(self, x, y, w, h, r, backing)
+
+    def live_image(self, x, y):
+        """A spot for a picture that changes (charts); set it with .set(pil_image)."""
+        return LiveImage(self, x, y)
 
     def glow(self, x, y, d, color):
         return Glow(self, x, y, d, color)
@@ -429,8 +377,16 @@ class Widget:
             self.g.canvas.delete(it)
 
 
+def _overlays(g, w, h, r, light=True):
+    """Hover and pressed highlight images for a rounded area."""
+    pw, ph = g.px(w), g.px(h)
+    base = (255, 255, 255) if light else (0, 0, 0)
+    return (g.photo(round_rect_image(pw, ph, g.px(r), base + (20,))),
+            g.photo(round_rect_image(pw, ph, g.px(r), base + (40,))))
+
+
 class Button(Widget):
-    """A glass pill with an optional icon and label. strong = brighter (the main action)."""
+    """A pill with an optional icon and label. strong = the white main-action pill."""
 
     def __init__(self, g, x, y, w, h, text, icon, command, strong, size, r):
         super().__init__(g, x, y, w, h)
@@ -439,27 +395,24 @@ class Button(Widget):
         if strong:
             g.neon_card(x, y, w, h, r)
         else:
-            g.card(x, y, w, h, r=r, tint=0.22, shadow=0.14)
-        pw, ph = g.px(w), g.px(h)
-        hover = Image.new("RGBA", (pw, ph), (255, 255, 255, 0))
-        hover.putalpha(Image.fromarray((np.asarray(rounded_mask(pw, ph, g.px(r)), np.float32) * 0.08).astype(np.uint8)))
-        press = hover.copy()
-        press.putalpha(Image.fromarray((np.asarray(rounded_mask(pw, ph, g.px(r)), np.float32) * 0.16).astype(np.uint8)))
-        self.hover_img, self.press_img = g.photo(hover), g.photo(press)
+            g.card(x, y, w, h, r=r, tint=0.22)
+        self.hover_img, self.press_img = _overlays(g, w, h, r, light=not strong)
         self.hl = g.canvas.create_image(self.box[0], self.box[1], image=self.hover_img, anchor="nw", state="hidden")
         self.items.append(self.hl)
+        color = DARK if strong else TEXT
+        weight = "bold" if strong else "normal"
         cx, cy = x + w / 2, y + h / 2
         self.icon_item = self.label = None
         if icon and text:
-            f = g.font(size, "bold" if strong else "normal")
+            f = g.font(size, weight)
             tw = f.measure(text) / g.s
             start = cx - (tw + size * 2.2) / 2
-            self.icon_item = g.icon(start + size * 0.7, cy, icon, size + 1)
-            self.label = g.text(start + size * 2.2, cy, text, size, "bold" if strong else "normal", anchor="w")
+            self.icon_item = g.icon(start + size * 0.7, cy, icon, size + 1, color=color)
+            self.label = g.text(start + size * 2.2, cy, text, size, weight, color=color, anchor="w")
         elif icon:
-            self.icon_item = g.icon(cx, cy, icon, size + 3)
+            self.icon_item = g.icon(cx, cy, icon, size + 3, color=color)
         else:
-            self.label = g.text(cx, cy, text, size, "bold" if strong else "normal", anchor="center")
+            self.label = g.text(cx, cy, text, size, weight, color=color, anchor="center")
         self.items += [i for i in (self.icon_item, self.label) if i]
 
     def set(self, text=None, icon=None):
@@ -480,42 +433,93 @@ class Button(Widget):
             self.command()
 
 
+class NavItem(Button):
+    """A sidebar entry: icon + label; the selected one sits on a white pill."""
+
+    H = 34
+
+    def __init__(self, g, x, y, w, text, icon, command, selected, badge):
+        Widget.__init__(self, g, x, y, w, self.H)
+        self.command = command
+        self.pill = g.canvas.create_image(self.box[0], self.box[1], anchor="nw", state="hidden",
+                                          image=g.photo(round_rect_image(g.px(w), g.px(self.H), g.px(9),
+                                                                         WHITE_CARD + (255,))))
+        self.hover_img, self.press_img = _overlays(g, w, self.H, 9)
+        self.hl = g.canvas.create_image(self.box[0], self.box[1], image=self.hover_img, anchor="nw", state="hidden")
+        self.icon_item = g.icon(x + 22, y + self.H / 2, icon, 13)
+        self.label = g.text(x + 44, y + self.H / 2, text, 10, anchor="w")
+        self.badge = None
+        self.items += [self.pill, self.hl, self.icon_item, self.label]
+        if badge is not None:
+            self.badge_dot = g.canvas.create_image(g.px(x + w - 22), g.px(y + self.H / 2), anchor="center",
+                                                   image=g.photo(disc(g.px(18), hex_rgb(PINK))), state="hidden")
+            self.badge = g.text(x + w - 22, y + self.H / 2, "", 8, "bold", anchor="center", color="#ffffff")
+            self.items += [self.badge_dot, self.badge]
+        self.select(selected)
+
+    def select(self, on):
+        self.selected = on
+        self.g.set(self.pill, state="normal" if on else "hidden")
+        self.g.set(self.icon_item, fill=DARK if on else TEXT)
+        self.g.set(self.label, fill=DARK if on else TEXT)
+
+    def set_badge(self, text):
+        if self.badge is not None:
+            self.g.set(self.badge, text=text or "")
+            self.g.set(self.badge_dot, state="normal" if text else "hidden")
+
+    def on_hover(self, on):
+        if not self.selected:
+            super().on_hover(on)
+
+    def on_press(self, x, y):
+        if not self.selected:
+            super().on_press(x, y)
+
+
+class IconButton(Button):
+    """Just an icon, with a round hover highlight."""
+
+    def __init__(self, g, x, y, icon, command, size):
+        d = size + 18
+        Widget.__init__(self, g, x - d / 2, y - d / 2, d, d)
+        self.command = command
+        self.hover_img, self.press_img = _overlays(g, d, d, d / 2)
+        self.hl = g.canvas.create_image(self.box[0], self.box[1], image=self.hover_img, anchor="nw", state="hidden")
+        self.icon_item = g.icon(x, y, icon, size)
+        self.label = None
+        self.items += [self.hl, self.icon_item]
+
+
 class Tile(Button):
-    """Icon in a glass circle with a label underneath (like a home-screen shortcut)."""
+    """Icon in a circle with a label underneath (like a home-screen shortcut)."""
 
     def __init__(self, g, x, y, w, h, text, icon, command):
         Widget.__init__(self, g, x, y, w, h)
         self.command = command
         d = 46
         cx = x + w / 2
-        g.card(cx - d / 2, y + 6, d, d, r=d / 2, tint=0.3, shadow=0.10)
-        g.ring(cx, y + 6 + d / 2, d / 2 - 1, width=1.4)
-        pw, ph = g.px(w), g.px(h)
-        mk = rounded_mask(pw, ph, g.px(18))
-        hover = Image.new("RGBA", (pw, ph), (255, 255, 255, 0))
-        hover.putalpha(Image.fromarray((np.asarray(mk, np.float32) * 0.06).astype(np.uint8)))
-        press = hover.copy()
-        press.putalpha(Image.fromarray((np.asarray(mk, np.float32) * 0.12).astype(np.uint8)))
-        self.hover_img, self.press_img = g.photo(hover), g.photo(press)
+        g.card(cx - d / 2, y + 6, d, d, r=d / 2, tint=0.3)
+        self.hover_img, self.press_img = _overlays(g, w, h, 14)
         self.hl = g.canvas.create_image(self.box[0], self.box[1], image=self.hover_img, anchor="nw", state="hidden")
-        self.icon_item = g.icon(cx, y + 6 + d / 2, icon, 16)
+        self.icon_item = g.icon(cx, y + 6 + d / 2, icon, 16, color=MINT)
         self.label = g.text(cx, y + d + 16, text, 9, anchor="n", justify="center", width=w - 4)
         self.items += [self.hl, self.icon_item, self.label]
 
 
 class Toggle(Widget):
-    W, H = 46, 26
+    """On = white track with a dark knob on the right (like the reference); off = grey, knob left."""
+
+    W, H = 44, 24
 
     def __init__(self, g, x, y, value, command):
         super().__init__(g, x, y, self.W, self.H)
         self.command, self.value = command, bool(value)
         pw, ph = g.px(self.W), g.px(self.H)
-        self.on_img = g.photo(pill_image(pw, ph, hex_rgb(ACCENT) + (255,)))
-        self.off_img = g.photo(pill_image(pw, ph, (50, 52, 61, 255)))
-        k = ph - g.px(6)
-        knob_on = glow_dot(k, (255, 255, 255))
-        knob_off = glow_dot(k, (150, 154, 170))
-        self.kon, self.koff = g.photo(knob_on), g.photo(knob_off)
+        self.on_img = g.photo(pill_image(pw, ph, WHITE_CARD + (255,)))
+        self.off_img = g.photo(pill_image(pw, ph, (70, 76, 84, 255)))
+        k = ph - g.px(8)
+        self.kon, self.koff = g.photo(disc(k, BG)), g.photo(disc(k, (170, 176, 186)))
         self.track = g.canvas.create_image(self.box[0], self.box[1], anchor="nw")
         self.knob = g.canvas.create_image(0, 0, anchor="center")
         self.items += [self.track, self.knob]
@@ -543,17 +547,17 @@ class Toggle(Widget):
 
 
 class Progress:
-    """A rounded bar: track baked into the background, white fill as a round-capped line."""
+    """A rounded bar: track baked into the background, mint fill as a round-capped line."""
 
-    def __init__(self, g, x, y, w, value, thick, baked=True):
+    def __init__(self, g, x, y, w, value, thick, baked=True, color=MINT):
         self.g, self.x, self.y, self.w, self.t = g, x, y, w, thick
-        track = pill_image(g.px(w), g.px(thick), (255, 255, 255, 26))
+        track = pill_image(g.px(w), g.px(thick), (255, 255, 255, 28))
         self.track = None
         if baked:
             g.base.alpha_composite(track, (g.px(x), g.px(y)))
         else:
             self.track = g.canvas.create_image(g.px(x), g.px(y), image=g.photo(track), anchor="nw", state="hidden")
-        self.line = g.canvas.create_line(0, 0, 0, 0, fill=ACCENT, width=g.px(thick), capstyle="round")
+        self.line = g.canvas.create_line(0, 0, 0, 0, fill=color, width=g.px(thick), capstyle="round")
         self.set(value)
 
     def set(self, value):
@@ -577,7 +581,7 @@ class Slider(Widget):
         self.x, self.y, self.w = x, y, w
         self.bar = Progress(g, x, y, w, 0, 6)
         k = g.px(14)
-        self.kimg = g.photo(glow_dot(k, (255, 255, 255)))
+        self.kimg = g.photo(disc(k, WHITE_CARD, ring=hex_rgb(MINT), ring_w=g.px(2)))
         self.knob = g.canvas.create_image(0, 0, anchor="center")
         self.items += [self.bar.line, self.knob]
         self.value = None
@@ -609,12 +613,13 @@ class Slider(Widget):
 class PhotoSlot:
     """A rounded-corner area for the live camera picture (or a message when there is none)."""
 
-    def __init__(self, g, x, y, w, h, r):
+    def __init__(self, g, x, y, w, h, r, backing=True):
         self.g, self.size = g, (g.px(w), g.px(h))
         self.mask = rounded_mask(*self.size, g.px(r))
-        dark = Image.new("RGBA", self.size, (9, 10, 13, 0))
-        dark.putalpha(Image.fromarray((np.asarray(self.mask, np.float32) * 215 / 255).astype(np.uint8)))
-        g.base.alpha_composite(dark, (g.px(x), g.px(y)))
+        if backing:
+            dark = Image.new("RGBA", self.size, (26, 30, 34, 0))
+            dark.putalpha(self.mask)
+            g.base.alpha_composite(dark, (g.px(x), g.px(y)))
         self.item = g.canvas.create_image(g.px(x), g.px(y), anchor="nw", state="hidden")
         self.msg = g.text(x + w / 2, y + h / 2, "", 11, color=SOFT, anchor="center", width=w - 60, justify="center")
         self.photo = None
@@ -633,6 +638,26 @@ class PhotoSlot:
         self.g.set(self.item, state="hidden")
         self.photo = None
         self.g.set(self.msg, text=text, state="normal", justify=justify)
+
+    def hide(self):
+        self.g.set(self.item, state="hidden")
+        self.g.set(self.msg, state="hidden")
+
+
+class LiveImage:
+    """A canvas image that is replaced as a whole (charts redrawn once a second)."""
+
+    def __init__(self, g, x, y):
+        self.g = g
+        self.item = g.canvas.create_image(g.px(x), g.px(y), anchor="nw")
+        self.photo = None
+
+    def set(self, img):
+        self.photo = ImageTk.PhotoImage(img, master=self.g.canvas)
+        self.g.set(self.item, image=self.photo, state="normal")
+
+    def show(self, on):
+        self.g.set(self.item, state="normal" if on else "hidden")
 
 
 class Glow:

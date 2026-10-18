@@ -426,7 +426,9 @@ class App:
                     log.info("stats: %.1f fps, %.1f%% CPU, state %s", fps, cpu, self._tray_state())
 
                 if self.ui:
-                    status = {"state": self._tray_state(), "mode": mode, "fps": fps, "cpu": cpu}
+                    status = {"state": self._tray_state(), "mode": mode, "fps": fps, "cpu": cpu,
+                              "actions": out.actions if out is not None else (),
+                              "cursor": out.cursor if out is not None else None}
                     if self.calibrator is not None:
                         status["banner"], status["progress"] = banner, progress
                     elif out is not None and "hold" in out.info:

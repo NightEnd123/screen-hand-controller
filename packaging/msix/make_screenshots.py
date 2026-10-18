@@ -13,7 +13,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -52,22 +52,82 @@ def grab(win):
     return img.crop((vis.left - r.left, vis.top - r.top, vis.right - r.left, vis.bottom - r.top))
 
 
+def neon_wall(W, H, left_x, right_x, top, bottom):
+    """A dark textured wall lit by a cyan neon tube on the left and a pink one on the right."""
+    rng = np.random.default_rng(4)
+    noise = rng.normal(0, 1, (H // 2, W // 2)).astype(np.float32)
+    noise = cv2.GaussianBlur(noise, (0, 0), 1.2)
+    noise = cv2.resize(noise, (W, H))
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    vign = 1 - 0.45 * (((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 1.6)) ** 2)
+    base = np.array((34, 48, 56), np.float32)[None, None, :] * vign[..., None]
+    base = base + noise[..., None] * 6
+    img = np.clip(base, 0, 255)
+    for x, color in ((left_x, (40, 225, 255)), (right_x, (255, 80, 205))):
+        d = np.abs(xx - x)
+        inside = (yy > top) & (yy < bottom)
+        ydist = np.where(inside, 0, np.minimum(np.abs(yy - top), np.abs(yy - bottom)))
+        r = np.hypot(d, ydist)
+        glow = np.exp(-(r / 170) ** 2) * 0.85 + np.exp(-(r / 45) ** 2) * 0.6
+        img = img + glow[..., None] * np.array(color, np.float32)[None, None, :] * 0.75
+    img = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).convert("RGBA")
+    d = ImageDraw.Draw(img)
+    for x, color in ((left_x, (120, 240, 255)), (right_x, (255, 150, 230))):
+        d.rounded_rectangle((x - 7, top, x + 7, bottom), radius=7, fill=color + (255,))
+        d.rounded_rectangle((x - 3, top + 4, x + 3, bottom - 4), radius=3, fill=(245, 252, 255, 255))
+    return img
+
+
 def compose(shot, name):
-    from gesture_control.glass import background
     W, H = 1920, 1080
-    bg = background(W, H)
-    scale = min((W - 160) / shot.width, (H - 120) / shot.height, 1.0)
+    scale = min((W - 380) / shot.width, (H - 150) / shot.height, 1.0)
     shot = shot.resize((round(shot.width * scale), round(shot.height * scale)), Image.LANCZOS)
     x, y = (W - shot.width) // 2, (H - shot.height) // 2
-    shadow = Image.new("RGBA", (W, H), (20, 16, 60, 0))
+    bg = neon_wall(W, H, x - 46, x + shot.width + 46, y + 40, y + shot.height - 40)
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     a = Image.new("L", (W, H), 0)
-    a.paste(110, (x + 6, y + 18, x + shot.width + 6, y + shot.height + 18))
-    shadow.putalpha(a.filter(ImageFilter.GaussianBlur(28)))
+    a.paste(150, (x + 4, y + 22, x + shot.width + 4, y + shot.height + 22))
+    shadow.putalpha(a.filter(ImageFilter.GaussianBlur(26)))
     bg = Image.alpha_composite(bg, shadow)
-    bg.paste(shot, (x, y))
+    mask = Image.new("L", shot.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, shot.width - 1, shot.height - 1), radius=14, fill=255)
+    bg.paste(shot, (x, y), mask)
     OUT.mkdir(exist_ok=True)
     bg.convert("RGB").save(OUT / f"{name}.png")
     print("saved", OUT / f"{name}.png")
+
+
+def demo_stats():
+    """A believable 10-minute session for the dashboard charts (made up, no camera)."""
+    import math
+    import random
+    import time
+    from gesture_control.stats import SessionStats
+    st = SessionStats()
+    random.seed(11)
+    t0 = time.perf_counter() - 600
+    x = y = 600.0
+    modes = ["point"] * 60 + ["lpinch"] * 10 + ["scroll"] * 9 + ["palm"] * 7 + ["switcher"] * 4 + ["victory"] * 5
+    mode = "point"
+    for i in range(6000):
+        sec = i / 10
+        state = "paused" if 190 < sec < 240 else "off" if 515 < sec < 530 else "active"
+        if i % 15 == 0:
+            mode = random.choice(modes) if (sec % 80) < 66 else "idle"
+        acts = []
+        if state == "active" and mode != "idle":
+            r = random.random()
+            if mode == "lpinch" and r < 0.05:
+                acts = [("down", "left")]
+            elif mode == "palm" and r < 0.03:
+                acts = [("keys", "ctrl+tab", "swipe_right")]
+        if 240 <= sec < 240.1:
+            acts = [("pause", True)]
+        sp = 260 + 220 * math.sin(sec / 6.5) + 160 * math.sin(sec / 2.3) + (sec > 565) * 380
+        x += random.uniform(-1, 1) * max(sp, 30) / 10
+        y += random.uniform(-1, 1) * max(sp, 30) / 10
+        st.add(t0 + sec, state, mode, acts, (x, y) if mode != "idle" else None)
+    return st
 
 
 def settle(root):
@@ -113,15 +173,18 @@ def main():
     icon = ImageTk.PhotoImage(tile(64), master=root)
     app = DemoApp()
     w = MainWindow(root, app, icon)
-    w.toggle_camera_view(True)
-    w.update({"state": "active", "mode": "point", "fps": 30, "cpu": 8, "last": "Next tab"},
-             picture(pose("point", center=(0.47, 0.42)), w.g.canvas and [0.275, 0.22, 0.725, 0.62]))
+    status = {"state": "active", "mode": "point", "fps": 30, "cpu": 7, "last": "Next tab", "stats": demo_stats()}
+    w.update(status, None)
     settle(root)
-    compose(grab(w.win), "1-main-window")
+    compose(grab(w.win), "1-dashboard")
+    w.toggle_camera_view(True)
+    w.update(status, picture(pose("point", center=(0.47, 0.42)), [0.275, 0.22, 0.725, 0.62]))
+    settle(root)
+    compose(grab(w.win), "2-camera-view")
 
     guide = w.show_guide() or w.guide
     settle(root)
-    compose(grab(guide.win), "4-gesture-guide")
+    compose(grab(guide.win), "5-gesture-guide")
     guide.win.destroy()
     w.close()
 
@@ -140,12 +203,12 @@ def main():
         v = sa.wz.update(t, pose("palm", center=(0.5, 0.45)))
     sw.show(v, picture(pose("palm", center=(0.5, 0.45))))
     settle(root)
-    compose(grab(sw.win), "2-setup")
+    compose(grab(sw.win), "3-setup")
     sw.close()
 
     s = SettingsWindow(root, app, icon)
     settle(root)
-    compose(grab(s.win), "3-settings")
+    compose(grab(s.win), "4-settings")
     s.win.destroy()
 
 

@@ -56,6 +56,8 @@ class UI(threading.Thread):
         self.main_status, self.main_rgb, self.main_new = {}, None, False
         self.main_wants_camera = False   # read by the engine thread; set on the Tk thread
         self.last_action = ""
+        from .stats import SessionStats
+        self.stats = SessionStats()       # numbers for the dashboard charts
         self.shown = None
         self.drawn_key = None    # what's currently on the canvas, to skip identical redraws
         self.pos = None
@@ -97,6 +99,9 @@ class UI(threading.Thread):
 
     def main_feed(self, status, rgb):
         status["last"] = self.last_action
+        self.stats.add(time.perf_counter(), status.get("state"), status.get("mode"),
+                       status.pop("actions", ()) or (), status.pop("cursor", None))
+        status["stats"] = self.stats
         self.main_status, self.main_rgb, self.main_new = status, rgb, True
 
     def stop(self):
